@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# Local data (use persistent disk instead)
+data/assets/*
+data/output/*
+data/logs/*
+
+# Keep database directory structure
+!data/database/.gitkeep
+
+# Git
+.git/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local testing
+*.tmp
+*.temp
+temp/
+tmp/
+
+# Documentation (optional, but nice to have)
+# *.md
+
+# Local config
+.env
+.env.local

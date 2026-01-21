@@ -5,6 +5,7 @@ Beautiful web UI for managing the automation system.
 """
 
 import sys
+import os
 from pathlib import Path
 
 # Add project root to path
@@ -26,7 +27,10 @@ from workflows import LongFormWorkflow, ShortFormWorkflow
 # Initialize Flask app
 app = Flask(__name__)
 CORS(app)
-app.config['SECRET_KEY'] = 'your-secret-key-change-in-production'
+
+# Configuration
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
+app.config['ENV'] = os.environ.get('FLASK_ENV', 'development')
 
 # Initialize system components
 config = ConfigManager()
@@ -417,17 +421,23 @@ def api_history():
 # ============================================================================
 
 if __name__ == '__main__':
+    # Get port from environment (for cloud deployment) or default to 5000
+    port = int(os.environ.get('PORT', 5000))
+    debug = os.environ.get('FLASK_ENV') != 'production'
+
     print("\n" + "="*60)
     print("🚀 AI Content Automation Dashboard")
     print("="*60)
-    print("\n📊 Dashboard URL: http://localhost:5000")
+    print(f"\n📊 Dashboard URL: http://localhost:{port}")
+    print(f"Environment: {app.config['ENV']}")
+    print(f"Debug Mode: {debug}")
     print("\nActive Channels:", len(config.get_active_channels()))
     print("Total Channels:", len(config.channels))
     print("\n" + "="*60 + "\n")
 
     app.run(
         host='0.0.0.0',
-        port=5000,
-        debug=True,
+        port=port,
+        debug=debug,
         use_reloader=False  # Disable reloader to prevent duplicate initialization
     )

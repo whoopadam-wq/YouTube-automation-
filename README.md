@@ -152,6 +152,41 @@ python main.py status
 python main.py list-channels
 ```
 
+---
+
+## ☁️ Cloud Deployment (Get a Public URL!)
+
+Want to access your dashboard from anywhere? Deploy to the cloud in 5 minutes!
+
+### Quick Deploy to Render.com
+
+1. **Push to GitHub** (already done ✅)
+
+2. **Sign up at Render.com** (free)
+   - Visit https://render.com
+   - Sign up with GitHub
+
+3. **Create Web Service**
+   - Connect your repository
+   - Render auto-detects `render.yaml`
+   - Add your API keys as environment variables
+
+4. **Deploy!**
+   - One click to deploy
+   - Get a public URL: `https://your-app.onrender.com`
+   - Access from anywhere with HTTPS
+
+### Features
+- ✅ **Free Tier** - No credit card required
+- ✅ **Automatic HTTPS** - Secure by default
+- ✅ **Auto-Deploy** - Push to GitHub → Auto-updates
+- ✅ **Persistent Database** - SQLite data persists
+- ✅ **Public URL** - Share with your team
+
+**📖 Full deployment guide:** See [DEPLOYMENT.md](DEPLOYMENT.md) for step-by-step instructions.
+
+---
+
 ## 🎨 Web Dashboard
 
 The system includes a **beautiful, real-time web dashboard** for easy management:
