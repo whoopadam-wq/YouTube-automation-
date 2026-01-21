@@ -1,0 +1,85 @@
+# SYSTEM-WIDE CONFIGURATION
+# Controls global behavior and defaults
+
+system:
+  name: "AI Content Automation Exoskeleton"
+  version: "1.0.0"
+  max_concurrent_channels: 10
+  max_concurrent_generations: 5
+
+# Async Polling Configuration
+async_polling:
+  initial_delay: 5  # seconds before first poll
+  max_delay: 60     # max seconds between polls
+  backoff_multiplier: 1.5  # exponential backoff
+  max_retries: 20   # max polling attempts
+  timeout: 3600     # total timeout in seconds (1 hour)
+
+# Generation Defaults
+generation_defaults:
+  long_form:
+    target_duration: 10  # minutes
+    min_duration: 8
+    max_duration: 15
+    scenes_per_minute: 3
+    words_per_minute: 150
+
+  short_form:
+    target_duration: 60  # seconds
+    min_duration: 30
+    max_duration: 90
+    hook_duration: 3  # seconds for opening hook
+
+  image_generation:
+    width: 1920
+    height: 1080
+    quality: "high"
+    style_consistency: true
+
+  video_generation:
+    fps: 30
+    codec: "h264"
+    bitrate: "8M"
+    audio_bitrate: "192k"
+
+# Cost Management
+cost_management:
+  track_costs: true
+  alert_threshold_percentage: 80  # Alert at 80% of cap
+  auto_pause_at_cap: true
+  cost_per_generation:
+    text_generation: 0.05
+    image_generation: 0.10
+    video_generation: 2.00
+    voice_synthesis: 0.15
+    character_generation: 0.50
+
+# Quality Controls
+quality_controls:
+  min_script_quality_score: 7.0  # 1-10 scale
+  require_manual_review: false
+  auto_retry_on_failure: true
+  max_auto_retries: 3
+
+# Storage
+storage:
+  cleanup_after_upload: false
+  keep_raw_assets: true
+  keep_final_videos: true
+  max_storage_gb: 100
+
+# Logging
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  log_to_file: true
+  log_to_console: true
+  rotation: "daily"
+  retention_days: 30
+
+# Safety & Compliance
+safety:
+  content_filter_enabled: true
+  copyright_check_enabled: true
+  profanity_filter: "moderate"  # strict, moderate, off
+  monetization_safe: true
+  age_restriction_check: true

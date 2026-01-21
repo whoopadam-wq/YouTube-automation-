@@ -1,0 +1,156 @@
+# CHANNEL CONFIGURATION
+# Each channel is a complete configuration - add new channels by copying this structure
+# NO CODE CHANGES REQUIRED TO ADD NEW CHANNELS
+
+channels:
+  # Example Channel 1: True Crime
+  - channel_id: "crime_stories_daily"
+    channel_name: "Crime Stories Daily"
+    youtube_channel_id: "UCxxxxxxxxxxxxxxxxxx"  # Your actual YouTube channel ID
+
+    # Content Settings
+    niche: "true crime"
+    topic: "unsolved mysteries and criminal psychology"
+
+    # Creative Control
+    base_prompt: |
+      Create an engaging true crime story focusing on lesser-known cases.
+      Emphasize psychological analysis and investigative details.
+      Maintain respectful tone toward victims.
+
+    tone_style_modifiers:
+      - "investigative journalism"
+      - "thoughtful analysis"
+      - "dramatic but respectful"
+
+    pacing_style: "cinematic"  # Options: cinematic, fast, documentary, casual
+    visual_style: "gritty"     # Options: gritty, clean, dramatic, minimal, vibrant
+
+    # Channel Character (Narrator)
+    use_channel_character: true
+    channel_character:
+      name: "Detective Morgan"
+      visual_description: "A seasoned detective in their 40s, wearing a dark blazer, thoughtful expression, standing in a dimly lit office with case files in the background"
+      personality: "analytical, empathetic, authoritative"
+      voice_style: "deep, measured, trustworthy"
+      appearance_frequency: "intro_outro_transitions"  # Options: intro_only, intro_outro, intro_outro_transitions, all_scenes
+
+    # Production Settings
+    long_form_enabled: true
+    shorts_enabled: true
+    shorts_per_day: 3
+    target_long_duration: 10  # minutes
+
+    # Scheduling
+    upload_timezone: "America/New_York"
+    upload_schedule_long:
+      - time: "18:00"
+        days: ["monday", "wednesday", "friday"]
+    upload_schedule_shorts:
+      - time: "09:00"
+        days: ["tuesday", "thursday", "saturday"]
+      - time: "13:00"
+        days: ["tuesday", "thursday", "saturday"]
+      - time: "17:00"
+        days: ["tuesday", "thursday", "saturday"]
+
+    # Cost Controls (per channel)
+    api_cost_cap_per_day: 15.00
+
+    # Status
+    status: "active"  # Options: active, paused, testing
+
+  # Example Channel 2: Space & Science
+  - channel_id: "cosmos_explorer"
+    channel_name: "Cosmos Explorer"
+    youtube_channel_id: "UCyyyyyyyyyyyyyyyyyy"
+
+    niche: "space science"
+    topic: "space exploration, astronomy, and cosmic phenomena"
+
+    base_prompt: |
+      Create awe-inspiring content about space and the universe.
+      Focus on recent discoveries, cosmic phenomena, and the wonder of exploration.
+      Make complex science accessible and exciting.
+
+    tone_style_modifiers:
+      - "educational but exciting"
+      - "sense of wonder"
+      - "scientifically accurate"
+
+    pacing_style: "documentary"
+    visual_style: "dramatic"
+
+    use_channel_character: true
+    channel_character:
+      name: "Dr. Stella Nova"
+      visual_description: "An enthusiastic astrophysicist in a modern observatory, casual professional attire, excited expression, with telescope and star charts visible"
+      personality: "passionate, knowledgeable, enthusiastic"
+      voice_style: "energetic, clear, inspiring"
+      appearance_frequency: "intro_outro"
+
+    long_form_enabled: true
+    shorts_enabled: true
+    shorts_per_day: 3
+    target_long_duration: 8
+
+    upload_timezone: "UTC"
+    upload_schedule_long:
+      - time: "14:00"
+        days: ["tuesday", "thursday", "saturday"]
+    upload_schedule_shorts:
+      - time: "08:00"
+        days: ["monday", "wednesday", "friday"]
+      - time: "12:00"
+        days: ["monday", "wednesday", "friday"]
+      - time: "16:00"
+        days: ["monday", "wednesday", "friday"]
+
+    api_cost_cap_per_day: 12.00
+    status: "active"
+
+  # Example Channel 3: Motivation & Success
+  - channel_id: "rise_and_grind"
+    channel_name: "Rise & Grind"
+    youtube_channel_id: "UCzzzzzzzzzzzzzzzzzz"
+
+    niche: "motivation"
+    topic: "personal development, success stories, and motivational content"
+
+    base_prompt: |
+      Create powerful motivational content featuring success stories and life lessons.
+      Focus on actionable insights and inspiring narratives.
+      High energy and positive messaging.
+
+    tone_style_modifiers:
+      - "high energy"
+      - "inspirational"
+      - "action-oriented"
+
+    pacing_style: "fast"
+    visual_style: "vibrant"
+
+    use_channel_character: false  # Pure content, no narrator character
+
+    long_form_enabled: true
+    shorts_enabled: true
+    shorts_per_day: 5  # High volume for motivation niche
+    target_long_duration: 12
+
+    upload_timezone: "America/Los_Angeles"
+    upload_schedule_long:
+      - time: "05:00"  # Early morning motivation
+        days: ["monday", "wednesday", "friday", "sunday"]
+    upload_schedule_shorts:
+      - time: "06:00"
+        days: "daily"
+      - time: "12:00"
+        days: "daily"
+      - time: "18:00"
+        days: "daily"
+
+    api_cost_cap_per_day: 20.00
+    status: "active"
+
+# Add more channels by copying the structure above
+# Each channel operates independently with zero code changes required

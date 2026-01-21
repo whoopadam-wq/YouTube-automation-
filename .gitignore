@@ -1,0 +1,59 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# Environment
+.env
+.env.local
+
+# Data directories
+data/assets/*
+data/output/*
+data/database/*.db
+data/database/*.db-journal
+data/logs/*
+data/channels/*
+!data/.gitkeep
+!data/assets/.gitkeep
+!data/output/.gitkeep
+!data/database/.gitkeep
+!data/logs/.gitkeep
+!data/channels/.gitkeep
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Media files
+*.mp4
+*.mp3
+*.wav
+*.png
+*.jpg
+*.jpeg
+*.gif
+
+# Logs
+*.log

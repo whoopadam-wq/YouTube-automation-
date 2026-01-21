@@ -1,0 +1,109 @@
+# API PROVIDER CONFIGURATION
+# Define which providers to use for each task
+# Easily swap providers without code changes
+
+providers:
+  # Script Generation
+  script_generation:
+    primary: "anthropic"
+    fallback: "openai"
+    models:
+      anthropic: "claude-sonnet-4-5-20250929"
+      openai: "gpt-4-turbo-preview"
+
+  # Character Design & Description
+  character_design:
+    primary: "anthropic"
+    fallback: "openai"
+    models:
+      anthropic: "claude-sonnet-4-5-20250929"
+      openai: "gpt-4-turbo-preview"
+
+  # Image Generation
+  image_generation:
+    primary: "replicate"
+    fallback: "openai"
+    models:
+      replicate: "stability-ai/sdxl:latest"
+      openai: "dall-e-3"
+    settings:
+      num_inference_steps: 50
+      guidance_scale: 7.5
+
+  # Video Generation
+  video_generation:
+    primary: "runway"
+    fallback: "replicate"
+    models:
+      runway: "gen3"
+      replicate: "stability-ai/stable-video-diffusion"
+    settings:
+      motion_strength: 127  # 0-255
+      duration: 4  # seconds per clip
+      fps: 30
+
+  # Voice Synthesis
+  voice_synthesis:
+    primary: "elevenlabs"
+    fallback: "openai"
+    models:
+      elevenlabs: "eleven_turbo_v2"
+      openai: "tts-1"
+    settings:
+      stability: 0.5
+      similarity_boost: 0.75
+
+  # YouTube Upload
+  upload:
+    provider: "youtube_api_v3"
+    privacy_default: "public"  # public, unlisted, private
+    category_default: "22"  # People & Blogs
+    auto_generate_tags: true
+
+# Provider-specific settings
+provider_settings:
+  replicate:
+    webhook_enabled: false
+    use_polling: true
+
+  runway:
+    webhook_enabled: false
+    use_polling: true
+
+  elevenlabs:
+    optimize_streaming_latency: 3
+    model_id: "eleven_turbo_v2"
+
+  openai:
+    organization: null
+    timeout: 120
+
+  anthropic:
+    timeout: 120
+    max_tokens: 4096
+
+# Rate Limiting (requests per minute)
+rate_limits:
+  anthropic: 50
+  openai: 60
+  replicate: 10
+  runway: 5
+  elevenlabs: 20
+
+# Cost Tracking (per 1000 units)
+cost_estimates:
+  anthropic:
+    input_tokens: 0.003
+    output_tokens: 0.015
+  openai:
+    gpt4_input: 0.01
+    gpt4_output: 0.03
+    dalle3: 0.040  # per image
+    tts: 0.015  # per 1000 chars
+  replicate:
+    image: 0.002  # per second
+    video: 0.05   # per second
+  runway:
+    video: 0.05   # per second
+  elevenlabs:
+    characters: 0.30  # per 1000 characters
