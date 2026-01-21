@@ -11,14 +11,6 @@ services:
         value: 3.10.13
       - key: SECRET_KEY
         generateValue: true
-      - key: ANTHROPIC_API_KEY
-        sync: false
-      - key: OPENAI_API_KEY
-        sync: false
-      - key: REPLICATE_API_TOKEN
-        sync: false
-      - key: ELEVENLABS_API_KEY
-        sync: false
     disk:
       name: data
       mountPath: /opt/render/project/src/data

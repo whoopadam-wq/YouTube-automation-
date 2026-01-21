@@ -32,25 +32,49 @@ CORS(app)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
 app.config['ENV'] = os.environ.get('FLASK_ENV', 'development')
 
-# Initialize system components
+# Initialize system components (these work without API keys)
 config = ConfigManager()
 state = StateManager(config)
 cost_tracker = CostTracker(config)
 orchestrator = AsyncOrchestrator(config)
 
-# Initialize modules
-script_gen = ScriptGenerator(config, cost_tracker)
-char_creator = CharacterCreator(config, cost_tracker)
-anchor_mgr = AnchorCharacterManager(config, cost_tracker)
-scene_planner = ScenePlanner(config, cost_tracker)
-media_gen = MediaGenerator(config, cost_tracker, orchestrator)
-video_assembler = VideoAssembler(config, cost_tracker)
-shorts_gen = ShortsGenerator(config, cost_tracker, script_gen, media_gen, video_assembler)
-scheduler = Scheduler(config, state, cost_tracker)
+# Check if API keys are configured
+def has_api_keys():
+    """Check if any API keys are configured."""
+    keys = [
+        os.environ.get('ANTHROPIC_API_KEY'),
+        os.environ.get('OPENAI_API_KEY'),
+        os.environ.get('REPLICATE_API_TOKEN'),
+        os.environ.get('ELEVENLABS_API_KEY')
+    ]
+    return any(key for key in keys)
 
-# Initialize workflows
-long_form_workflow = LongFormWorkflow(config, state, cost_tracker, orchestrator)
-short_form_workflow = ShortFormWorkflow(config, state, cost_tracker, orchestrator, shorts_gen)
+API_KEYS_CONFIGURED = has_api_keys()
+
+# Initialize modules (only if API keys are present)
+if API_KEYS_CONFIGURED:
+    try:
+        script_gen = ScriptGenerator(config, cost_tracker)
+        char_creator = CharacterCreator(config, cost_tracker)
+        anchor_mgr = AnchorCharacterManager(config, cost_tracker)
+        scene_planner = ScenePlanner(config, cost_tracker)
+        media_gen = MediaGenerator(config, cost_tracker, orchestrator)
+        video_assembler = VideoAssembler(config, cost_tracker)
+        shorts_gen = ShortsGenerator(config, cost_tracker, script_gen, media_gen, video_assembler)
+        scheduler = Scheduler(config, state, cost_tracker)
+
+        # Initialize workflows
+        long_form_workflow = LongFormWorkflow(config, state, cost_tracker, orchestrator)
+        short_form_workflow = ShortFormWorkflow(config, state, cost_tracker, orchestrator, shorts_gen)
+    except Exception as e:
+        print(f"Warning: Could not initialize generation modules: {e}")
+        API_KEYS_CONFIGURED = False
+else:
+    print("ℹ️  Dashboard running in VIEW-ONLY mode")
+    print("ℹ️  Add API keys in Render dashboard to enable content generation")
+    script_gen = char_creator = anchor_mgr = scene_planner = None
+    media_gen = video_assembler = shorts_gen = scheduler = None
+    long_form_workflow = short_form_workflow = None
 
 
 # ============================================================================
@@ -111,6 +135,7 @@ def api_system_status():
 
         return jsonify({
             'status': 'ok',
+            'api_keys_configured': API_KEYS_CONFIGURED,
             'channels': {
                 'total': total_channels,
                 'active': len(active_channels),
@@ -255,6 +280,12 @@ def api_channel_detail(channel_id):
 def api_generate_long():
     """Trigger long-form generation."""
     try:
+        # Check if API keys are configured
+        if not API_KEYS_CONFIGURED:
+            return jsonify({
+                'error': 'API keys not configured. Add them in Render dashboard → Environment to enable generation.'
+            }), 400
+
         data = request.json
         channel_id = data.get('channel_id')
 
@@ -285,6 +316,12 @@ def api_generate_long():
 def api_generate_shorts():
     """Trigger shorts generation."""
     try:
+        # Check if API keys are configured
+        if not API_KEYS_CONFIGURED:
+            return jsonify({
+                'error': 'API keys not configured. Add them in Render dashboard → Environment to enable generation.'
+            }), 400
+
         data = request.json
         channel_id = data.get('channel_id')
         num_shorts = data.get('num_shorts')

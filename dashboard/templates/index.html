@@ -193,6 +193,22 @@ let costChart, statusChart;
 function loadDashboard() {
     // Load system status
     $.get('/api/system/status', function(data) {
+        // Check if API keys are configured
+        if (!data.api_keys_configured) {
+            $('#alerts-container').html(`
+                <div class="alert alert-warning mb-4">
+                    <h5><i class="fas fa-key me-2"></i> API Keys Not Configured</h5>
+                    <p class="mb-2">The dashboard is running in VIEW-ONLY mode. To enable content generation:</p>
+                    <ol class="mb-0">
+                        <li>Go to <strong>Render Dashboard</strong> → Your Service → <strong>Environment</strong></li>
+                        <li>Add your API keys (Anthropic, OpenAI, Replicate, ElevenLabs)</li>
+                        <li>Click <strong>Save Changes</strong></li>
+                        <li>Service will auto-restart and generation will be enabled!</li>
+                    </ol>
+                </div>
+            `);
+        }
+
         // Update stat cards
         $('#stat-active-channels').text(data.channels.active);
         $('#stat-completed').text(data.generation.completed_today);
