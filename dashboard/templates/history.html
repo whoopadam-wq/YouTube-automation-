@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}History - AI Content Automation{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="display-6 fw-bold">
+                <i class="fas fa-history"></i> Generation History
+            </h1>
+            <p class="text-secondary">View all generated content</p>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <select class="form-select" id="channel-filter" style="background: var(--card-bg); color: var(--text-primary); border-color: rgba(255, 255, 255, 0.2);">
+                <option value="">All Channels</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Video ID</th>
+                                    <th>Channel</th>
+                                    <th>Type</th>
+                                    <th>Status</th>
+                                    <th>Title</th>
+                                    <th>Created</th>
+                                </tr>
+                            </thead>
+                            <tbody id="history-table">
+                                <tr><td colspan="6" class="text-center"><span class="spinner-border spinner-border-sm"></span></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function loadHistory() {
+    const channelFilter = $('#channel-filter').val();
+    const url = channelFilter ? `/api/history?channel_id=${channelFilter}` : '/api/history';
+
+    $.get(url, function(data) {
+        let html = '';
+        if (data.videos.length === 0) {
+            html = '<tr><td colspan="6" class="text-center text-secondary">No videos found</td></tr>';
+        } else {
+            data.videos.forEach(video => {
+                const statusClass = {
+                    'uploaded': 'success',
+                    'upload_pending': 'warning',
+                    'failed': 'danger'
+                }[video.status] || 'info';
+
+                html += `
+                    <tr>
+                        <td><code>${video.video_id}</code></td>
+                        <td>${video.channel_id}</td>
+                        <td><span class="badge bg-secondary">${video.content_type}</span></td>
+                        <td><span class="badge bg-${statusClass}">${video.status}</span></td>
+                        <td>${video.title || 'Untitled'}</td>
+                        <td><small>${formatDate(video.created_at)}</small></td>
+                    </tr>
+                `;
+            });
+        }
+        $('#history-table').html(html);
+    });
+}
+
+function loadChannelFilter() {
+    $.get('/api/channels', function(data) {
+        let options = '<option value="">All Channels</option>';
+        data.channels.forEach(ch => {
+            options += `<option value="${ch.id}">${ch.name}</option>`;
+        });
+        $('#channel-filter').html(options);
+    });
+}
+
+$('#channel-filter').change(loadHistory);
+
+$(document).ready(function() {
+    loadChannelFilter();
+    startAutoRefresh(loadHistory, 10000);
+});
+</script>
+{% endblock %}

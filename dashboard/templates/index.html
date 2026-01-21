@@ -1,0 +1,374 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - AI Content Automation{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="display-6 fw-bold">
+                <i class="fas fa-chart-line"></i> Dashboard
+            </h1>
+            <p class="text-secondary">Real-time system overview and monitoring</p>
+        </div>
+    </div>
+
+    <!-- Alerts -->
+    <div id="alerts-container"></div>
+
+    <!-- Stats Cards -->
+    <div class="row" id="stats-cards">
+        <div class="col-md-3">
+            <div class="stat-card primary">
+                <div class="stat-icon">
+                    <i class="fas fa-tv"></i>
+                </div>
+                <h6>Active Channels</h6>
+                <h3 id="stat-active-channels">
+                    <span class="spinner-border spinner-border-sm"></span>
+                </h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card success">
+                <div class="stat-icon">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <h6>Completed Today</h6>
+                <h3 id="stat-completed">
+                    <span class="spinner-border spinner-border-sm"></span>
+                </h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card warning">
+                <div class="stat-icon">
+                    <i class="fas fa-dollar-sign"></i>
+                </div>
+                <h6>Spent Today</h6>
+                <h3 id="stat-cost">
+                    <span class="spinner-border spinner-border-sm"></span>
+                </h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card danger">
+                <div class="stat-icon">
+                    <i class="fas fa-cog fa-spin"></i>
+                </div>
+                <h6>In Progress</h6>
+                <h3 id="stat-progress">
+                    <span class="spinner-border spinner-border-sm"></span>
+                </h3>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-chart-bar"></i> Cost Overview
+                    </h5>
+                    <canvas id="costChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-chart-pie"></i> Generation Status
+                    </h5>
+                    <canvas id="statusChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Channels Overview -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-tv"></i> Channels Overview
+                    </h5>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Channel</th>
+                                    <th>Status</th>
+                                    <th>Niche</th>
+                                    <th>Budget</th>
+                                    <th>Spent Today</th>
+                                    <th>Usage</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="channels-table">
+                                <tr>
+                                    <td colspan="7" class="text-center">
+                                        <span class="spinner-border spinner-border-sm me-2"></span>
+                                        Loading channels...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Info -->
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-server"></i> System Status
+                    </h5>
+                    <div class="row">
+                        <div class="col-6">
+                            <p class="mb-2">
+                                <small class="text-secondary">Daily Budget Cap</small><br>
+                                <strong id="daily-cap">$0.00</strong>
+                            </p>
+                        </div>
+                        <div class="col-6">
+                            <p class="mb-2">
+                                <small class="text-secondary">Monthly Budget Cap</small><br>
+                                <strong id="monthly-cap">$0.00</strong>
+                            </p>
+                        </div>
+                        <div class="col-6">
+                            <p class="mb-2">
+                                <small class="text-secondary">Spent This Month</small><br>
+                                <strong id="monthly-spent">$0.00</strong>
+                            </p>
+                        </div>
+                        <div class="col-6">
+                            <p class="mb-2">
+                                <small class="text-secondary">Active Tasks</small><br>
+                                <strong id="active-tasks">0</strong>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-bolt"></i> Quick Actions
+                    </h5>
+                    <div class="d-grid gap-2">
+                        <a href="/generate" class="btn btn-primary">
+                            <i class="fas fa-play"></i> Generate Content
+                        </a>
+                        <a href="/channels" class="btn btn-outline-light">
+                            <i class="fas fa-tv"></i> Manage Channels
+                        </a>
+                        <a href="/costs" class="btn btn-outline-light">
+                            <i class="fas fa-chart-line"></i> View Costs
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let costChart, statusChart;
+
+function loadDashboard() {
+    // Load system status
+    $.get('/api/system/status', function(data) {
+        // Update stat cards
+        $('#stat-active-channels').text(data.channels.active);
+        $('#stat-completed').text(data.generation.completed_today);
+        $('#stat-cost').text(formatCurrency(data.costs.today));
+        $('#stat-progress').text(data.generation.in_progress);
+
+        // Update system info
+        $('#daily-cap').text(formatCurrency(data.costs.daily_cap));
+        $('#monthly-cap').text(formatCurrency(data.costs.monthly_cap));
+        $('#monthly-spent').text(formatCurrency(data.costs.month));
+        $('#active-tasks').text(data.orchestrator.processing);
+
+        // Update cost chart
+        updateCostChart(data.costs);
+
+        // Update status chart
+        updateStatusChart(data.generation);
+    });
+
+    // Load alerts
+    $.get('/api/system/alerts', function(data) {
+        if (data.alerts.length > 0) {
+            let alertsHtml = '';
+            data.alerts.forEach(alert => {
+                alertsHtml += `
+                    <div class="alert alert-${alert.severity === 'high' ? 'danger' : 'warning'} mb-3">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        ${alert.message}
+                    </div>
+                `;
+            });
+            $('#alerts-container').html(alertsHtml);
+        } else {
+            $('#alerts-container').html('');
+        }
+    });
+
+    // Load channels
+    $.get('/api/channels', function(data) {
+        let html = '';
+        data.channels.forEach(channel => {
+            const statusBadge = channel.status === 'active'
+                ? '<span class="badge badge-active">Active</span>'
+                : '<span class="badge badge-paused">Paused</span>';
+
+            const usagePct = channel.budget_used_pct;
+            const progressClass = usagePct >= 90 ? 'bg-danger' : usagePct >= 70 ? 'bg-warning' : 'bg-success';
+
+            html += `
+                <tr>
+                    <td>
+                        <strong>${channel.name}</strong><br>
+                        <small class="text-secondary">${channel.id}</small>
+                    </td>
+                    <td>${statusBadge}</td>
+                    <td><span class="badge bg-secondary">${channel.niche}</span></td>
+                    <td>${formatCurrency(channel.daily_budget)}</td>
+                    <td>${formatCurrency(channel.daily_spent)}</td>
+                    <td>
+                        <div class="progress">
+                            <div class="progress-bar ${progressClass}" style="width: ${usagePct}%"></div>
+                        </div>
+                        <small class="text-secondary">${usagePct.toFixed(1)}%</small>
+                    </td>
+                    <td>
+                        <a href="/channels?id=${channel.id}" class="btn btn-sm btn-outline-light">
+                            <i class="fas fa-eye"></i>
+                        </a>
+                    </td>
+                </tr>
+            `;
+        });
+        $('#channels-table').html(html);
+    });
+}
+
+function updateCostChart(costs) {
+    const ctx = document.getElementById('costChart').getContext('2d');
+
+    if (costChart) {
+        costChart.destroy();
+    }
+
+    costChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['Today', 'Budget'],
+            datasets: [{
+                label: 'Cost (USD)',
+                data: [costs.today, costs.daily_cap],
+                backgroundColor: [
+                    'rgba(99, 102, 241, 0.8)',
+                    'rgba(139, 92, 246, 0.3)'
+                ],
+                borderColor: [
+                    'rgb(99, 102, 241)',
+                    'rgb(139, 92, 246)'
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        color: '#94a3b8'
+                    },
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.1)'
+                    }
+                },
+                x: {
+                    ticks: {
+                        color: '#94a3b8'
+                    },
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        }
+    });
+}
+
+function updateStatusChart(generation) {
+    const ctx = document.getElementById('statusChart').getContext('2d');
+
+    if (statusChart) {
+        statusChart.destroy();
+    }
+
+    statusChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Completed', 'In Progress', 'Queued', 'Failed'],
+            datasets: [{
+                data: [
+                    generation.completed_today,
+                    generation.in_progress,
+                    generation.queued,
+                    generation.failed
+                ],
+                backgroundColor: [
+                    'rgba(16, 185, 129, 0.8)',
+                    'rgba(99, 102, 241, 0.8)',
+                    'rgba(245, 158, 11, 0.8)',
+                    'rgba(239, 68, 68, 0.8)'
+                ],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        color: '#94a3b8',
+                        padding: 15
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Start auto-refresh
+$(document).ready(function() {
+    startAutoRefresh(loadDashboard, 5000);
+});
+</script>
+{% endblock %}

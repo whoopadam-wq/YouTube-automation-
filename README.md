@@ -118,7 +118,22 @@ channels:
     status: "active"
 ```
 
-### 4. Generate Content
+### 4. Launch Dashboard (Recommended)
+
+```bash
+# Linux/Mac
+./start_dashboard.sh
+
+# Windows
+start_dashboard.bat
+
+# Or manually
+python dashboard/app.py
+```
+
+Open your browser to **http://localhost:5000** and enjoy the beautiful dashboard!
+
+### 5. Or Use CLI
 
 ```bash
 # Generate a long-form video
@@ -136,6 +151,42 @@ python main.py status
 # List all channels
 python main.py list-channels
 ```
+
+## 🎨 Web Dashboard
+
+The system includes a **beautiful, real-time web dashboard** for easy management:
+
+### Features
+- ✅ **Real-time monitoring** - Auto-refreshing stats and metrics
+- ✅ **Channel management** - View all channels, budgets, and configurations
+- ✅ **Manual generation** - Trigger long-form or shorts with one click
+- ✅ **Cost tracking** - Visualize spending with charts and breakdowns
+- ✅ **Generation history** - Track all videos across channels
+- ✅ **Schedule overview** - View automated generation schedules
+
+### Dashboard Pages
+
+1. **Dashboard** - System overview, active channels, costs, generation status
+2. **Channels** - Manage channels, view details, budgets, and stats
+3. **Generate** - Manually trigger content generation
+4. **Costs** - Budget tracking, per-channel costs, breakdowns
+5. **Schedule** - View automated schedules
+6. **History** - All generated videos with filtering
+
+### Technology
+- **Backend**: Flask with async support
+- **Frontend**: Bootstrap 5, Chart.js, modern CSS
+- **Real-time**: Auto-refreshing data (5-10 second intervals)
+- **Responsive**: Works on desktop, tablet, and mobile
+
+### Screenshots
+
+The dashboard features:
+- 🎨 Modern dark theme with gradients
+- 📊 Interactive charts and visualizations
+- 📱 Fully responsive design
+- ⚡ Real-time status updates
+- 🎯 One-click content generation
 
 ## 📁 Project Structure
 
@@ -173,13 +224,27 @@ YouTube-automation-/
 │   ├── long_form.py            # Long-form pipeline
 │   └── short_form.py           # Short-form pipeline
 │
+├── dashboard/                  # Web Dashboard
+│   ├── app.py                  # Flask application
+│   ├── templates/              # HTML templates
+│   │   ├── base.html          # Base template
+│   │   ├── index.html         # Dashboard home
+│   │   ├── channels.html      # Channels page
+│   │   ├── generate.html      # Generation page
+│   │   ├── costs.html         # Cost tracking
+│   │   ├── schedule.html      # Schedule view
+│   │   └── history.html       # History view
+│   └── static/                 # CSS, JS, images
+│
 ├── data/
 │   ├── channels/               # Channel-specific data
 │   ├── assets/                 # Generated media
 │   ├── database/               # SQLite database
 │   └── output/                 # Final videos
 │
-└── main.py                     # Main entry point
+├── main.py                     # CLI entry point
+├── start_dashboard.sh          # Dashboard launcher (Linux/Mac)
+└── start_dashboard.bat         # Dashboard launcher (Windows)
 ```
 
 ## 🎬 Content Pipeline

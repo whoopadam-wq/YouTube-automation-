@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block title %}Costs - AI Content Automation{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="display-6 fw-bold">
+                <i class="fas fa-dollar-sign"></i> Cost Tracking
+            </h1>
+            <p class="text-secondary">Monitor API usage and budget limits</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-4">
+            <div class="stat-card success">
+                <div class="stat-icon"><i class="fas fa-calendar-day"></i></div>
+                <h6>Today's Spend</h6>
+                <h3 id="cost-today">$0.00</h3>
+                <small class="text-secondary">of <span id="daily-limit">$0.00</span> limit</small>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card warning">
+                <div class="stat-icon"><i class="fas fa-calendar-week"></i></div>
+                <h6>This Month</h6>
+                <h3 id="cost-month">$0.00</h3>
+                <small class="text-secondary">of <span id="monthly-limit">$0.00</span> limit</small>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card primary">
+                <div class="stat-icon"><i class="fas fa-chart-line"></i></div>
+                <h6>Budget Remaining</h6>
+                <h3 id="cost-remaining">$0.00</h3>
+                <small class="text-secondary">daily budget</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="fas fa-chart-bar"></i> Per-Channel Costs</h5>
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Channel</th>
+                                    <th>Today</th>
+                                    <th>This Month</th>
+                                    <th>Budget</th>
+                                    <th>Usage</th>
+                                </tr>
+                            </thead>
+                            <tbody id="channel-costs-table">
+                                <tr><td colspan="5" class="text-center"><span class="spinner-border spinner-border-sm"></span></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="fas fa-pie-chart"></i> Cost Breakdown</h5>
+                    <canvas id="breakdownChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let breakdownChart;
+
+function loadCosts() {
+    $.get('/api/costs/summary', function(data) {
+        $('#cost-today').text(formatCurrency(data.global.today));
+        $('#cost-month').text(formatCurrency(data.global.month));
+        $('#daily-limit').text(formatCurrency(data.global.daily_cap));
+        $('#monthly-limit').text(formatCurrency(data.global.monthly_cap));
+        $('#cost-remaining').text(formatCurrency(data.global.daily_cap - data.global.today));
+
+        let html = '';
+        data.channels.forEach(ch => {
+            const usagePct = ch.usage_pct;
+            const barClass = usagePct >= 90 ? 'bg-danger' : usagePct >= 70 ? 'bg-warning' : 'bg-success';
+
+            html += `
+                <tr>
+                    <td><strong>${ch.channel_name}</strong></td>
+                    <td>${formatCurrency(ch.daily)}</td>
+                    <td>${formatCurrency(ch.monthly)}</td>
+                    <td>${formatCurrency(ch.budget)}</td>
+                    <td>
+                        <div class="progress">
+                            <div class="progress-bar ${barClass}" style="width: ${usagePct}%"></div>
+                        </div>
+                        <small>${usagePct.toFixed(1)}%</small>
+                    </td>
+                </tr>
+            `;
+        });
+        $('#channel-costs-table').html(html);
+
+        updateBreakdownChart(data.global.breakdown);
+    });
+}
+
+function updateBreakdownChart(breakdown) {
+    const ctx = document.getElementById('breakdownChart').getContext('2d');
+    if (breakdownChart) breakdownChart.destroy();
+
+    const labels = Object.keys(breakdown).map(k => k.replace('_', ' '));
+    const values = Object.values(breakdown);
+
+    breakdownChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: values,
+                backgroundColor: [
+                    'rgba(99, 102, 241, 0.8)',
+                    'rgba(139, 92, 246, 0.8)',
+                    'rgba(16, 185, 129, 0.8)',
+                    'rgba(245, 158, 11, 0.8)',
+                    'rgba(239, 68, 68, 0.8)'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { color: '#94a3b8', padding: 10 }
+                }
+            }
+        }
+    });
+}
+
+$(document).ready(function() {
+    startAutoRefresh(loadCosts, 10000);
+});
+</script>
+{% endblock %}
