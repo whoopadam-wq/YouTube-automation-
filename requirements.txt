@@ -39,6 +39,5 @@ flask>=3.0.0
 flask-cors>=4.0.0
 gunicorn>=21.2.0
 
-# Development
-pytest>=7.4.0
-black>=24.1.0
+# TIMEZONE DEPENDENCY (THIS WAS MISSING)
+pytz>=2024.1
