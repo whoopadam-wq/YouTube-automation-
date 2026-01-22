@@ -1,12 +1,16 @@
 services:
   - type: web
-    name: ai-automation-dashboard
-    env: python
+    name: ai-video-studio
+    runtime: python
     plan: free
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn -w 2 -b 0.0.0.0:$PORT --timeout 120 dashboard.app:app
+    buildCommand: pip install -r studio/requirements.txt
+    startCommand: python studio/app.py
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.10.13
-      - key: SECRET_KEY
-        generateValue: true
+      - key: PORT
+        value: 10000
+      - key: KIEAI_API_KEY
+        value: 74ba78915402a077bb93b3cf140eb904
+      - key: STUDIO_MOCK_GENERATION
+        value: true
+      - key: STUDIO_MOCK_POSTING
+        value: true
