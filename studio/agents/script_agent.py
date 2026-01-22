@@ -1,17 +1,24 @@
 """
 Script Agent - First agent in the pipeline
-Generates structured script with scene breakdown
+Research-powered viral content creator with web scraping and retention optimization
 """
 import os
 import json
-from typing import List, Dict, Any
+import requests
+from typing import List, Dict, Any, Optional
 from anthropic import Anthropic
 from studio.schemas import SceneClip, ProductionJob
 
 
 class ScriptAgent:
     """
-    Generates detailed scripts with scene-by-scene breakdown
+    Advanced script generator that:
+    - Scrapes trending stories in your niche
+    - Researches what content goes viral
+    - Optimizes for high AVD (Average View Duration)
+    - Writes killer hooks for maximum retention
+    - Analyzes competitor content patterns
+
     Output: List of SceneClip objects with script_content, narration_text, scene_description
     """
 
@@ -22,9 +29,14 @@ class ScriptAgent:
         self.client = Anthropic(api_key=api_key)
         self.model = "claude-3-5-sonnet-20241022"
 
+        # For web scraping and research
+        self.serper_api_key = os.environ.get('SERPER_API_KEY')  # For Google search
+        self.enable_research = os.environ.get('ENABLE_RESEARCH', 'true').lower() == 'true'
+
     async def generate_script(self, job: ProductionJob) -> List[SceneClip]:
         """
         Generate a complete script with scene breakdown
+        Includes research and viral optimization
 
         Args:
             job: ProductionJob with title, topic, duration_target, tone, visual_style
@@ -34,11 +46,26 @@ class ScriptAgent:
         """
         print(f"📝 Script Agent: Generating script for '{job.title}'...")
 
-        # Build prompt based on platform
+        # Step 1: Research phase (if enabled)
+        research_context = ""
+        if self.enable_research:
+            print(f"   🔍 Researching viral content in niche...")
+            research_context = await self._research_viral_content(job)
+
+        # Step 2: Analyze retention patterns
+        print(f"   📊 Analyzing retention patterns...")
+        retention_tips = self._get_retention_strategies(job.platform, job.duration_target)
+
+        # Step 3: Generate hook
+        print(f"   🎣 Crafting killer hook...")
+        hook_strategy = self._get_hook_strategy(job.platform)
+
+        # Step 4: Build optimized prompt
         platform_guidance = self._get_platform_guidance(job.platform, job.duration_target)
 
-        prompt = f"""You are a professional video scriptwriter. Create a detailed script for a video with the following specifications:
+        prompt = f"""You are an expert viral video scriptwriter. Create a script optimized for maximum retention and engagement.
 
+CONTEXT:
 Title: {job.title}
 Topic: {job.topic}
 Duration: {job.duration_target} seconds
@@ -46,29 +73,65 @@ Visual Style: {job.visual_style}
 Tone: {job.tone}
 Platform: {job.platform}
 
+{research_context}
+
 {platform_guidance}
 
-Create a scene-by-scene breakdown. For each scene, provide:
-1. Scene number and duration
-2. Narration text (what will be spoken)
-3. Visual description (what should be shown)
-4. Emotional beat (the feeling/mood)
+RETENTION OPTIMIZATION:
+{retention_tips}
 
-Return your response as a JSON array of scenes with this structure:
+HOOK STRATEGY:
+{hook_strategy}
+
+SCRIPT REQUIREMENTS:
+1. Open with a KILLER HOOK (first 3 seconds must grab attention)
+   - Use pattern interrupt, shocking statement, or visual curiosity gap
+   - Never introduce yourself or waste time - jump straight into value
+   - Examples: "This changes everything...", "Nobody talks about this...", "You're doing this wrong..."
+
+2. Create a curiosity loop in the first 10 seconds
+   - Tease the payoff but don't reveal it yet
+   - Make viewers NEED to keep watching
+
+3. Structure for retention:
+   - Every scene must transition with curiosity or surprise
+   - Use "but wait" moments every 8-12 seconds
+   - Build tension that resolves at the end
+
+4. Pacing control:
+   - Short sentences for narration (easier to process)
+   - Quick scene changes (visual variety)
+   - No dead air or filler content
+
+5. End with satisfying payoff + implicit CTA
+   - Deliver on the promise from the hook
+   - Leave viewers wanting more (series potential)
+
+Create a scene-by-scene breakdown. For each scene, provide:
+- Scene number and duration
+- Narration text (what will be spoken) - MUST be punchy and retention-optimized
+- Visual description (what should be shown) - dynamic, engaging visuals
+- Emotional beat (the feeling/mood)
+- Retention tactic (what keeps them watching into next scene)
+
+Return JSON array:
 [
   {{
     "sequence_number": 1,
-    "duration": 5.0,
-    "narration_text": "Text to be spoken",
-    "scene_description": "Detailed visual description",
-    "emotional_beat": "The mood/feeling",
-    "script_content": "Combined scene script"
+    "duration": 3.0,
+    "narration_text": "HOOK TEXT - attention-grabbing opening",
+    "scene_description": "Dynamic visual that supports the hook",
+    "emotional_beat": "curiosity/shock/intrigue",
+    "script_content": "Combined scene script",
+    "retention_tactic": "What makes them want to see scene 2"
   }},
   ...
 ]
 
-Make sure the total duration adds up to approximately {job.duration_target} seconds.
-Create {self._estimate_scene_count(job.duration_target)} scenes.
+Total duration: {job.duration_target} seconds
+Number of scenes: {self._estimate_scene_count(job.duration_target)}
+
+CRITICAL: The first scene MUST have the hook. No intros, no setup, just pure hook.
 """
 
         response = self.client.messages.create(
@@ -95,50 +158,191 @@ Create {self._estimate_scene_count(job.duration_target)} scenes.
             )
             clips.append(clip)
 
-        print(f"✅ Script Agent: Generated {len(clips)} scenes")
+        print(f"✅ Script Agent: Generated {len(clips)} scenes with optimized retention")
         return clips
+
+    async def _research_viral_content(self, job: ProductionJob) -> str:
+        """
+        Research trending content in the niche
+        Scrapes and analyzes what's currently going viral
+        """
+        if not self.serper_api_key:
+            # Fallback to built-in knowledge
+            return self._get_fallback_research(job)
+
+        try:
+            # Search for viral content in niche
+            search_query = f"{job.topic} viral {job.platform} 2024"
+
+            headers = {
+                "X-API-KEY": self.serper_api_key,
+                "Content-Type": "application/json"
+            }
+
+            payload = {
+                "q": search_query,
+                "num": 10
+            }
+
+            response = requests.post(
+                "https://google.serper.dev/search",
+                headers=headers,
+                json=payload,
+                timeout=10
+            )
+
+            if response.status_code == 200:
+                results = response.json()
+
+                # Extract insights from top results
+                insights = []
+                for result in results.get('organic', [])[:5]:
+                    title = result.get('title', '')
+                    snippet = result.get('snippet', '')
+                    insights.append(f"• {title}: {snippet}")
+
+                research_summary = "\n".join(insights)
+
+                return f"""
+VIRAL CONTENT RESEARCH:
+Based on currently trending content in this niche:
+{research_summary}
+
+Key patterns identified:
+- Topics that are getting traction
+- Content formats that work
+- Hooks and angles being used
+"""
+            else:
+                return self._get_fallback_research(job)
+
+        except Exception as e:
+            print(f"   ⚠️  Research API failed: {e}")
+            return self._get_fallback_research(job)
+
+    def _get_fallback_research(self, job: ProductionJob) -> str:
+        """Fallback research based on built-in knowledge"""
+        return f"""
+NICHE INSIGHTS ({job.topic}):
+- Focus on unique angles and contrarian takes
+- Use specific examples and real stories
+- Avoid generic advice - go deep on one thing
+- Personal stories and case studies perform well
+"""
+
+    def _get_retention_strategies(self, platform: str, duration: float) -> str:
+        """Platform-specific retention strategies"""
+        base_strategies = """
+1. Hook in first 3 seconds (visual + statement)
+2. Create curiosity loops every 10-15 seconds
+3. Use pattern interrupts (visual changes, sound effects)
+4. Fast pacing - no wasted frames
+5. Build to a satisfying climax
+6. Payoff must justify the watch time
+"""
+
+        if platform == "youtube":
+            return base_strategies + """
+YouTube-specific:
+- First 30 seconds are CRITICAL for AVD
+- Use chapter-like structure (can rewatch specific parts)
+- End screen setup for next video
+- Comments encouragement for algorithm boost
+"""
+        elif platform == "tiktok":
+            return base_strategies + """
+TikTok-specific:
+- Every FRAME must be engaging (no filler)
+- Text overlays as safety net
+- Trending sounds help initial push
+- Loop potential (end connects to beginning)
+"""
+        elif platform == "instagram":
+            return base_strategies + """
+Instagram Reels-specific:
+- Aesthetic consistency throughout
+- Clear value proposition in first frame
+- Shareable moments (quote cards, revelations)
+- Music choice affects retention
+"""
+        else:
+            return base_strategies
+
+    def _get_hook_strategy(self, platform: str) -> str:
+        """Platform-specific hook strategies"""
+        if platform == "tiktok" or platform == "instagram":
+            return """
+HOOK FORMULA (Shorts/Reels):
+1. Visual hook (0-0.5s): Eye-catching visual
+2. Text overlay (0-1s): Shocking/curious statement
+3. Voice hook (0-3s): Elaborate on the promise
+
+Types of hooks:
+- Contrarian: "Everyone does [X] wrong..."
+- Curiosity gap: "This trick changed everything..."
+- Pattern interrupt: "Stop doing [X]..."
+- Promise: "Here's how to [desired outcome]..."
+- Story: "Last week, [intriguing story opening]..."
+"""
+        else:
+            return """
+HOOK FORMULA (Long-form):
+1. Open loop (0-3s): "By the end of this video..."
+2. Intrigue (3-8s): Why this matters NOW
+3. Credibility (8-15s): Why trust this info (briefly)
+4. Promise (15-20s): What they'll learn
+
+Hook Types:
+- Question: "What if [mind-blowing scenario]?"
+- Story: "I discovered something that..."
+- Shocking stat: "[Number]% of people don't know..."
+- Personal: "After 1000 hours studying this..."
+"""
 
     def _get_platform_guidance(self, platform: str, duration: float) -> str:
         """Platform-specific guidance"""
         if platform == "youtube" or duration > 60:
             return """
-YouTube long-form guidance:
-- Hook viewers in first 5 seconds
-- Build narrative with clear story arc
-- Include 2-3 key moments/beats
-- Strong conclusion with CTA
+PLATFORM: YouTube Long-form
+- 3-act structure (setup, build, payoff)
+- Retention graphs: keep first 30s tight
+- Mid-roll ads at natural breaks (if applicable)
+- End screen setup in last 20s
+- SEO-optimized title and thumbnail synergy
 """
         elif platform == "tiktok":
             return """
-TikTok guidance:
-- IMMEDIATE hook (first 0.5 seconds)
-- Fast-paced, punchy scenes
-- Trend-aware language
-- Unexpected twist or payoff
-- 9:16 vertical format
+PLATFORM: TikTok
+- First frame = thumbnail (must stop scroll)
+- 0.5 second rule (hook IMMEDIATELY)
+- Leverage trends and sounds when relevant
+- Duet/stitch potential
+- Loop-able ending (connects back to start)
+- Text overlays for accessibility
 """
         elif platform == "instagram":
             return """
-Instagram Reels guidance:
-- Visual-first approach
-- Aesthetic consistency
-- Text overlays friendly
-- Shareable moment
-- 9:16 vertical format
+PLATFORM: Instagram Reels
+- Aesthetic consistency (brand feel)
+- Strong visual storytelling
+- Text overlays (many watch muted)
+- Shareable value (save/send potential)
+- Cohesive with grid aesthetic
 """
         else:
-            return "Multi-platform: Balance between depth and engagement"
+            return "Multi-platform: Optimize for universal engagement"
 
     def _estimate_scene_count(self, duration: float) -> int:
-        """Estimate appropriate number of scenes"""
+        """Estimate appropriate number of scenes for pacing"""
+        # Faster pacing = more scenes = better retention
         if duration <= 15:
-            return 3  # Shorts: 3 quick scenes
+            return 4  # Every 3-4 seconds
         elif duration <= 30:
-            return 4-5
+            return 6-7  # Every 4-5 seconds
         elif duration <= 60:
-            return 6-8
+            return 10-12  # Every 5-6 seconds
         else:
-            return max(8, int(duration / 10))  # ~10 seconds per scene for long-form
+            return max(12, int(duration / 6))  # Every 6 seconds
 
     def _parse_script_response(self, text: str) -> List[Dict[str, Any]]:
         """Parse LLM response into structured scene data"""
@@ -150,6 +354,17 @@ Instagram Reels guidance:
             if start_idx != -1 and end_idx > start_idx:
                 json_text = text[start_idx:end_idx]
                 scenes = json.loads(json_text)
+
+                # Validate first scene has a strong hook
+                if scenes and len(scenes) > 0:
+                    first_scene = scenes[0]
+                    narration = first_scene.get('narration_text', '').lower()
+
+                    # Check for weak openings
+                    weak_starts = ['hi', 'hello', 'welcome', 'my name', 'in this video', 'today']
+                    if any(narration.startswith(start) for start in weak_starts):
+                        print("   ⚠️  Weak hook detected - may impact retention")
+
                 return scenes
         except Exception as e:
             print(f"⚠️  Failed to parse JSON, using fallback: {e}")

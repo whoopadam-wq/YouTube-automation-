@@ -17,7 +17,11 @@ CORS(app)
 orchestrator = ProductionOrchestrator()
 post_manager = PostManager()
 
-# Enable mock mode for development
+# Set default kie.ai API key if not already set
+if not os.environ.get('KIEAI_API_KEY'):
+    os.environ['KIEAI_API_KEY'] = '74ba78915402a077bb93b3cf140eb904'
+
+# Enable mock mode for development (set to 'false' for real generation)
 os.environ['STUDIO_MOCK_GENERATION'] = 'true'
 os.environ['STUDIO_MOCK_POSTING'] = 'true'
 

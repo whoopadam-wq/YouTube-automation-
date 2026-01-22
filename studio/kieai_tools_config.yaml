@@ -1,0 +1,212 @@
+# Kie.ai Tools Configuration
+# Easy configuration for all available kie.ai tools
+# Add new tools here as they become available on kie.ai
+
+# Currently Active Tools (used by studio)
+active_tools:
+  image_generation:
+    tool: nano-banana-pro
+    endpoint: /images/generate
+    description: "Fast, high-quality image generation"
+    default_params:
+      width: 1024
+      height: 1024
+      num_inference_steps: 20
+      guidance_scale: 3.5
+
+  video_generation:
+    tool: veo-3
+    endpoint: /videos/generate
+    description: "Frame-controlled video generation"
+    default_params:
+      duration: 5.0
+      aspect_ratio: "16:9"
+
+  voice_synthesis:
+    tool: elevenlabs
+    endpoint: /audio/generate
+    description: "Natural voice synthesis"
+    default_params:
+      voice_id: "default"
+
+# Available Tools (ready to enable)
+available_tools:
+  # Image Tools
+  image_upscale:
+    tool: real-esrgan
+    endpoint: /images/upscale
+    method: POST
+    description: "Upscale images 2x-4x"
+    default_params:
+      scale: 2
+
+  image_style_transfer:
+    tool: style-transfer
+    endpoint: /images/style-transfer
+    method: POST
+    description: "Apply artistic styles to images"
+    default_params:
+      strength: 0.8
+
+  image_background_remove:
+    tool: rembg
+    endpoint: /images/remove-background
+    method: POST
+    description: "Remove image backgrounds"
+
+  image_inpainting:
+    tool: stable-diffusion-inpainting
+    endpoint: /images/inpaint
+    method: POST
+    description: "Edit specific parts of images"
+
+  # Video Tools
+  video_upscale:
+    tool: topaz-video-ai
+    endpoint: /videos/upscale
+    method: POST
+    description: "Upscale video resolution"
+
+  video_interpolation:
+    tool: rife
+    endpoint: /videos/interpolate
+    method: POST
+    description: "Increase video framerate"
+    default_params:
+      target_fps: 60
+
+  video_stabilization:
+    tool: vid-stab
+    endpoint: /videos/stabilize
+    method: POST
+    description: "Stabilize shaky videos"
+
+  # Audio Tools
+  audio_enhance:
+    tool: audio-enhance
+    endpoint: /audio/enhance
+    method: POST
+    description: "Enhance audio quality"
+
+  audio_transcribe:
+    tool: whisper
+    endpoint: /audio/transcribe
+    method: POST
+    description: "Speech to text transcription"
+
+  music_generation:
+    tool: musicgen
+    endpoint: /audio/generate-music
+    method: POST
+    description: "Generate background music"
+    default_params:
+      duration: 30
+      genre: "cinematic"
+
+  # Text Tools
+  text_to_speech_advanced:
+    tool: play-ht
+    endpoint: /audio/tts-advanced
+    method: POST
+    description: "Advanced TTS with emotions"
+
+  text_translation:
+    tool: deepl
+    endpoint: /text/translate
+    method: POST
+    description: "High-quality translation"
+
+  text_summarization:
+    tool: gpt-4
+    endpoint: /text/summarize
+    method: POST
+    description: "Summarize long text"
+
+  # 3D Tools
+  image_to_3d:
+    tool: triposr
+    endpoint: /3d/image-to-3d
+    method: POST
+    description: "Convert images to 3D models"
+
+  text_to_3d:
+    tool: shap-e
+    endpoint: /3d/text-to-3d
+    method: POST
+    description: "Generate 3D models from text"
+
+  # Animation Tools
+  motion_capture:
+    tool: mediapipe
+    endpoint: /animation/motion-capture
+    method: POST
+    description: "Extract motion from video"
+
+  lip_sync:
+    tool: wav2lip
+    endpoint: /animation/lip-sync
+    method: POST
+    description: "Sync lips to audio"
+
+# Usage examples
+usage_examples:
+  - name: "Generate Image"
+    tool: nano-banana-pro
+    code: |
+      provider.generate_image_nano_banana_pro(
+          prompt="A cinematic scene...",
+          width=1920,
+          height=1080
+      )
+
+  - name: "Generate Video"
+    tool: veo-3
+    code: |
+      provider.generate_video_veo3_wait(
+          prompt="Camera pans across...",
+          start_image_url="https://...",
+          end_image_url="https://...",
+          duration=5.0,
+          aspect_ratio="16:9"
+      )
+
+  - name: "Text to Speech"
+    tool: elevenlabs
+    code: |
+      provider.generate_audio(
+          text="Hello world",
+          voice_id="default",
+          model="elevenlabs"
+      )
+
+  - name: "Use Any Tool"
+    tool: custom
+    code: |
+      provider.call_any_model(
+          model_name="new-tool",
+          endpoint="/category/action",
+          payload={"param": "value"}
+      )
+
+# How to add a new tool:
+# 1. Add tool configuration to 'available_tools' section
+# 2. Test it using provider.call_any_model() with the endpoint
+# 3. If used frequently, add a dedicated method to KieAIProvider class
+# 4. Move to 'active_tools' if integrated into studio workflow
+
+# Quick integration template:
+integration_template: |
+  # In kieai_provider.py, add:
+
+  def your_new_method(self, param1, param2):
+      """Description of what this does"""
+      payload = {
+          "param1": param1,
+          "param2": param2
+      }
+
+      return self.call_any_model(
+          model_name="tool-name",
+          endpoint="/category/action",
+          payload=payload
+      )
