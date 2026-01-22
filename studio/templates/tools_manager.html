@@ -1,0 +1,719 @@
+{% extends "base.html" %}
+
+{% block title %}AI Tools Manager - Studio{% endblock %}
+
+{% block extra_css %}
+<style>
+    .tools-grid {
+        display: grid;
+        grid-template-columns: 300px 1fr;
+        gap: 30px;
+        margin-top: 30px;
+    }
+
+    /* Tool Palette */
+    .tool-palette {
+        background: #1a1a1a;
+        border-radius: 12px;
+        padding: 20px;
+        height: fit-content;
+        position: sticky;
+        top: 20px;
+    }
+
+    .tool-palette h3 {
+        margin-bottom: 20px;
+        font-size: 18px;
+        color: #667eea;
+    }
+
+    .tool-card {
+        background: #2a2a2a;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 15px;
+        cursor: grab;
+        transition: all 0.3s;
+        border: 2px solid transparent;
+    }
+
+    .tool-card:hover {
+        transform: translateX(5px);
+        border-color: #667eea;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+
+    .tool-card.dragging {
+        opacity: 0.5;
+        cursor: grabbing;
+    }
+
+    .tool-logo {
+        width: 50px;
+        height: 50px;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .tool-name {
+        font-weight: 600;
+        font-size: 14px;
+        margin-bottom: 5px;
+    }
+
+    .tool-description {
+        font-size: 12px;
+        opacity: 0.7;
+        line-height: 1.4;
+    }
+
+    .tool-category {
+        display: inline-block;
+        background: rgba(102, 126, 234, 0.2);
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 10px;
+        margin-top: 8px;
+    }
+
+    /* Agents Panel */
+    .agents-panel {
+        background: #1a1a1a;
+        border-radius: 12px;
+        padding: 20px;
+    }
+
+    .agent-card {
+        background: #2a2a2a;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        border: 2px solid #333;
+    }
+
+    .agent-card.drag-over {
+        border-color: #667eea;
+        background: rgba(102, 126, 234, 0.1);
+    }
+
+    .agent-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+
+    .agent-name {
+        font-size: 18px;
+        font-weight: 600;
+    }
+
+    .agent-status {
+        padding: 5px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .agent-status.active {
+        background: #10b981;
+        color: #fff;
+    }
+
+    .agent-status.inactive {
+        background: #ef4444;
+        color: #fff;
+    }
+
+    .agent-tools {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        min-height: 60px;
+        padding: 15px;
+        background: #1a1a1a;
+        border-radius: 8px;
+        border: 2px dashed #333;
+    }
+
+    .agent-tools.has-tools {
+        border-style: solid;
+        border-color: #10b981;
+    }
+
+    .agent-tools.empty:after {
+        content: "Drag AI tools here";
+        color: #666;
+        font-size: 13px;
+    }
+
+    .connected-tool {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        padding: 8px 15px;
+        border-radius: 8px;
+        font-size: 13px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        position: relative;
+    }
+
+    .connected-tool .remove-tool {
+        cursor: pointer;
+        font-size: 16px;
+        opacity: 0.7;
+        transition: opacity 0.2s;
+    }
+
+    .connected-tool .remove-tool:hover {
+        opacity: 1;
+    }
+
+    .tool-icon {
+        font-size: 18px;
+    }
+
+    /* Filter */
+    .filter-tabs {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 15px;
+    }
+
+    .filter-tab {
+        padding: 8px 15px;
+        background: #2a2a2a;
+        border-radius: 6px;
+        font-size: 13px;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: 2px solid transparent;
+    }
+
+    .filter-tab:hover {
+        background: #3a3a3a;
+    }
+
+    .filter-tab.active {
+        background: #667eea;
+        border-color: #667eea;
+    }
+
+    /* Action Buttons */
+    .action-bar {
+        display: flex;
+        gap: 15px;
+        margin-top: 30px;
+    }
+
+    /* Status Indicator */
+    .connection-indicator {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 5px;
+        animation: pulse 2s infinite;
+    }
+
+    .connection-indicator.connected {
+        background: #10b981;
+    }
+
+    .connection-indicator.disconnected {
+        background: #ef4444;
+    }
+
+    @keyframes pulse {
+        0%, 100% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0.5;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="margin-top: 20px;">
+    <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <h2>🔧 AI Tools Manager</h2>
+                <p style="opacity: 0.7; margin-top: 5px;">Drag and drop AI tools to connect them to agents</p>
+            </div>
+            <div class="action-bar">
+                <button onclick="saveConfiguration()" class="btn btn-primary">
+                    💾 Save Configuration
+                </button>
+                <button onclick="testConnections()" class="btn btn-secondary">
+                    🔌 Test All Connections
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="tools-grid">
+        <!-- Left: Tool Palette -->
+        <div class="tool-palette">
+            <h3>Available AI Tools</h3>
+
+            <div class="filter-tabs">
+                <div class="filter-tab active" onclick="filterTools('all')">All</div>
+                <div class="filter-tab" onclick="filterTools('image')">Images</div>
+                <div class="filter-tab" onclick="filterTools('video')">Video</div>
+                <div class="filter-tab" onclick="filterTools('audio')">Audio</div>
+            </div>
+
+            <div id="tools-container">
+                <!-- Tools will be dynamically inserted here -->
+            </div>
+        </div>
+
+        <!-- Right: Agents Panel -->
+        <div class="agents-panel">
+            <h3 style="margin-bottom: 20px; color: #667eea;">Production Agents</h3>
+
+            <!-- Script Agent -->
+            <div class="agent-card" data-agent="script" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)">
+                <div class="agent-header">
+                    <div class="agent-name">📝 Script Agent</div>
+                    <div class="agent-status active">
+                        <span class="connection-indicator connected"></span>Active
+                    </div>
+                </div>
+                <p style="opacity: 0.7; font-size: 13px; margin-bottom: 15px;">Generates scripts with viral optimization</p>
+                <div class="agent-tools" data-agent="script">
+                    <!-- Connected tools will appear here -->
+                </div>
+            </div>
+
+            <!-- Character Lock Agent -->
+            <div class="agent-card" data-agent="character" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)">
+                <div class="agent-header">
+                    <div class="agent-name">🎭 Character Lock Agent</div>
+                    <div class="agent-status inactive">
+                        <span class="connection-indicator disconnected"></span>No Tools
+                    </div>
+                </div>
+                <p style="opacity: 0.7; font-size: 13px; margin-bottom: 15px;">Ensures character consistency</p>
+                <div class="agent-tools empty" data-agent="character"></div>
+            </div>
+
+            <!-- Lighting Agent -->
+            <div class="agent-card" data-agent="lighting" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)">
+                <div class="agent-header">
+                    <div class="agent-name">💡 Lighting Agent</div>
+                    <div class="agent-status inactive">
+                        <span class="connection-indicator disconnected"></span>No Tools
+                    </div>
+                </div>
+                <p style="opacity: 0.7; font-size: 13px; margin-bottom: 15px;">Designs lighting for mood</p>
+                <div class="agent-tools empty" data-agent="lighting"></div>
+            </div>
+
+            <!-- Composition Agent -->
+            <div class="agent-card" data-agent="composition" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)">
+                <div class="agent-header">
+                    <div class="agent-name">🎬 Composition Agent</div>
+                    <div class="agent-status inactive">
+                        <span class="connection-indicator disconnected"></span>No Tools
+                    </div>
+                </div>
+                <p style="opacity: 0.7; font-size: 13px; margin-bottom: 15px;">Plans camera angles and framing</p>
+                <div class="agent-tools empty" data-agent="composition"></div>
+            </div>
+
+            <!-- Frame Agent -->
+            <div class="agent-card" data-agent="frame" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)">
+                <div class="agent-header">
+                    <div class="agent-name">🎞️ Frame Agent</div>
+                    <div class="agent-status active">
+                        <span class="connection-indicator connected"></span>Active
+                    </div>
+                </div>
+                <p style="opacity: 0.7; font-size: 13px; margin-bottom: 15px;">Creates start/end frame specifications</p>
+                <div class="agent-tools" data-agent="frame">
+                    <div class="connected-tool" data-tool="nano-banana-pro">
+                        <span class="tool-icon">🎨</span>
+                        Nano Banana Pro
+                        <span class="remove-tool" onclick="removeTool(event, 'frame', 'nano-banana-pro')">×</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Video Agent -->
+            <div class="agent-card" data-agent="video" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)">
+                <div class="agent-header">
+                    <div class="agent-name">🎥 Video Agent</div>
+                    <div class="agent-status active">
+                        <span class="connection-indicator connected"></span>Active
+                    </div>
+                </div>
+                <p style="opacity: 0.7; font-size: 13px; margin-bottom: 15px;">Generates video clips</p>
+                <div class="agent-tools" data-agent="video">
+                    <div class="connected-tool" data-tool="veo-3">
+                        <span class="tool-icon">🎬</span>
+                        Veo 3
+                        <span class="remove-tool" onclick="removeTool(event, 'video', 'veo-3')">×</span>
+                    </div>
+                    <div class="connected-tool" data-tool="elevenlabs">
+                        <span class="tool-icon">🎙️</span>
+                        ElevenLabs
+                        <span class="remove-tool" onclick="removeTool(event, 'video', 'elevenlabs')">×</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Assembly Agent -->
+            <div class="agent-card" data-agent="assembly" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)">
+                <div class="agent-header">
+                    <div class="agent-name">🎬 Assembly Agent</div>
+                    <div class="agent-status active">
+                        <span class="connection-indicator connected"></span>Active
+                    </div>
+                </div>
+                <p style="opacity: 0.7; font-size: 13px; margin-bottom: 15px;">Assembles final video with Remotion</p>
+                <div class="agent-tools" data-agent="assembly">
+                    <div class="connected-tool" data-tool="remotion">
+                        <span class="tool-icon">⚛️</span>
+                        Remotion
+                        <span class="remove-tool" onclick="removeTool(event, 'assembly', 'remotion')">×</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Available AI tools with metadata
+const aiTools = [
+    // Image Generation
+    {
+        id: 'nano-banana-pro',
+        name: 'Nano Banana Pro',
+        icon: '🎨',
+        category: 'image',
+        description: 'Fast, high-quality image generation',
+        provider: 'kie.ai',
+        status: 'active'
+    },
+    {
+        id: 'dall-e-3',
+        name: 'DALL-E 3',
+        icon: '🖼️',
+        category: 'image',
+        description: 'OpenAI\'s image generation model',
+        provider: 'OpenAI',
+        status: 'available'
+    },
+    {
+        id: 'midjourney',
+        name: 'Midjourney',
+        icon: '🎭',
+        category: 'image',
+        description: 'Artistic image generation',
+        provider: 'Midjourney',
+        status: 'available'
+    },
+    {
+        id: 'stable-diffusion',
+        name: 'Stable Diffusion XL',
+        icon: '🌟',
+        category: 'image',
+        description: 'Open-source image generation',
+        provider: 'Stability AI',
+        status: 'available'
+    },
+    // Video Generation
+    {
+        id: 'veo-3',
+        name: 'Veo 3',
+        icon: '🎬',
+        category: 'video',
+        description: 'Frame-controlled video generation',
+        provider: 'kie.ai',
+        status: 'active'
+    },
+    {
+        id: 'runway-gen2',
+        name: 'Runway Gen-2',
+        icon: '🎥',
+        category: 'video',
+        description: 'Text/image to video',
+        provider: 'Runway',
+        status: 'available'
+    },
+    {
+        id: 'pika',
+        name: 'Pika Labs',
+        icon: '⚡',
+        category: 'video',
+        description: 'AI video generation',
+        provider: 'Pika',
+        status: 'available'
+    },
+    // Audio/Voice
+    {
+        id: 'elevenlabs',
+        name: 'ElevenLabs',
+        icon: '🎙️',
+        category: 'audio',
+        description: 'Natural voice synthesis',
+        provider: 'ElevenLabs',
+        status: 'active'
+    },
+    {
+        id: 'play-ht',
+        name: 'Play.ht',
+        icon: '🔊',
+        category: 'audio',
+        description: 'Advanced text-to-speech',
+        provider: 'Play.ht',
+        status: 'available'
+    },
+    {
+        id: 'musicgen',
+        name: 'MusicGen',
+        icon: '🎵',
+        category: 'audio',
+        description: 'AI music generation',
+        provider: 'Meta',
+        status: 'available'
+    },
+    // Utility Tools
+    {
+        id: 'real-esrgan',
+        name: 'Real-ESRGAN',
+        icon: '🔍',
+        category: 'image',
+        description: 'Image upscaling 2x-4x',
+        provider: 'kie.ai',
+        status: 'available'
+    },
+    {
+        id: 'whisper',
+        name: 'Whisper',
+        icon: '📝',
+        category: 'audio',
+        description: 'Speech to text transcription',
+        provider: 'OpenAI',
+        status: 'available'
+    },
+    {
+        id: 'remotion',
+        name: 'Remotion',
+        icon: '⚛️',
+        category: 'video',
+        description: 'React-based video composition',
+        provider: 'Remotion',
+        status: 'active'
+    }
+];
+
+let currentFilter = 'all';
+
+// Initialize tools
+function initializeTools() {
+    renderTools();
+    updateAgentStatuses();
+}
+
+// Render tool cards
+function renderTools() {
+    const container = document.getElementById('tools-container');
+    const filtered = currentFilter === 'all'
+        ? aiTools
+        : aiTools.filter(tool => tool.category === currentFilter);
+
+    container.innerHTML = filtered.map(tool => `
+        <div class="tool-card" draggable="true" ondragstart="drag(event)" data-tool-id="${tool.id}" data-category="${tool.category}">
+            <div class="tool-logo">${tool.icon}</div>
+            <div class="tool-name">${tool.name}</div>
+            <div class="tool-description">${tool.description}</div>
+            <div class="tool-category">${tool.category}</div>
+        </div>
+    `).join('');
+}
+
+// Filter tools
+function filterTools(category) {
+    currentFilter = category;
+
+    // Update active tab
+    document.querySelectorAll('.filter-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    event.target.classList.add('active');
+
+    renderTools();
+}
+
+// Drag and drop handlers
+function allowDrop(ev) {
+    ev.preventDefault();
+    ev.currentTarget.classList.add('drag-over');
+}
+
+function dragLeave(ev) {
+    ev.currentTarget.classList.remove('drag-over');
+}
+
+function drag(ev) {
+    ev.dataTransfer.setData("toolId", ev.target.dataset.toolId);
+    ev.target.classList.add('dragging');
+}
+
+function drop(ev) {
+    ev.preventDefault();
+    ev.currentTarget.classList.remove('drag-over');
+
+    const toolId = ev.dataTransfer.getData("toolId");
+    const agentCard = ev.currentTarget.closest('.agent-card');
+    const agentId = agentCard.dataset.agent;
+    const agentToolsContainer = agentCard.querySelector('.agent-tools');
+
+    // Find tool data
+    const tool = aiTools.find(t => t.id === toolId);
+    if (!tool) return;
+
+    // Check if tool already connected
+    if (agentToolsContainer.querySelector(`[data-tool="${toolId}"]`)) {
+        alert('Tool already connected to this agent');
+        return;
+    }
+
+    // Add tool to agent
+    const toolElement = document.createElement('div');
+    toolElement.className = 'connected-tool';
+    toolElement.dataset.tool = toolId;
+    toolElement.innerHTML = `
+        <span class="tool-icon">${tool.icon}</span>
+        ${tool.name}
+        <span class="remove-tool" onclick="removeTool(event, '${agentId}', '${toolId}')">×</span>
+    `;
+
+    agentToolsContainer.appendChild(toolElement);
+    agentToolsContainer.classList.remove('empty');
+    agentToolsContainer.classList.add('has-tools');
+
+    updateAgentStatus(agentId);
+
+    // Remove dragging class
+    document.querySelectorAll('.dragging').forEach(el => {
+        el.classList.remove('dragging');
+    });
+}
+
+// Remove tool from agent
+function removeTool(ev, agentId, toolId) {
+    ev.stopPropagation();
+
+    if (!confirm('Remove this tool from the agent?')) return;
+
+    const agentCard = document.querySelector(`.agent-card[data-agent="${agentId}"]`);
+    const toolElement = agentCard.querySelector(`[data-tool="${toolId}"]`);
+    const agentToolsContainer = agentCard.querySelector('.agent-tools');
+
+    toolElement.remove();
+
+    // Update empty state
+    if (agentToolsContainer.children.length === 0) {
+        agentToolsContainer.classList.add('empty');
+        agentToolsContainer.classList.remove('has-tools');
+    }
+
+    updateAgentStatus(agentId);
+}
+
+// Update agent status indicator
+function updateAgentStatus(agentId) {
+    const agentCard = document.querySelector(`.agent-card[data-agent="${agentId}"]`);
+    const toolsContainer = agentCard.querySelector('.agent-tools');
+    const statusElement = agentCard.querySelector('.agent-status');
+    const indicator = statusElement.querySelector('.connection-indicator');
+
+    const hasTools = toolsContainer.children.length > 0;
+
+    if (hasTools) {
+        statusElement.className = 'agent-status active';
+        statusElement.innerHTML = '<span class="connection-indicator connected"></span>Active';
+    } else {
+        statusElement.className = 'agent-status inactive';
+        statusElement.innerHTML = '<span class="connection-indicator disconnected"></span>No Tools';
+    }
+}
+
+// Update all agent statuses
+function updateAgentStatuses() {
+    document.querySelectorAll('.agent-card').forEach(card => {
+        updateAgentStatus(card.dataset.agent);
+    });
+}
+
+// Save configuration
+async function saveConfiguration() {
+    const config = {};
+
+    document.querySelectorAll('.agent-card').forEach(card => {
+        const agentId = card.dataset.agent;
+        const tools = [];
+
+        card.querySelectorAll('.connected-tool').forEach(tool => {
+            tools.push(tool.dataset.tool);
+        });
+
+        config[agentId] = tools;
+    });
+
+    try {
+        const response = await fetch('/api/tools/config', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({config: config})
+        });
+
+        if (response.ok) {
+            alert('✅ Configuration saved successfully!');
+        } else {
+            throw new Error('Save failed');
+        }
+    } catch (error) {
+        alert('❌ Failed to save configuration: ' + error.message);
+    }
+}
+
+// Test connections
+async function testConnections() {
+    alert('🔌 Testing all AI tool connections...\n\nThis will verify API keys and connectivity.');
+
+    try {
+        const response = await fetch('/api/tools/test', {
+            method: 'POST'
+        });
+
+        const data = await response.json();
+
+        let message = '🔌 Connection Test Results:\n\n';
+        for (const [tool, status] of Object.entries(data.results)) {
+            const icon = status.connected ? '✅' : '❌';
+            message += `${icon} ${tool}: ${status.message}\n`;
+        }
+
+        alert(message);
+    } catch (error) {
+        alert('❌ Test failed: ' + error.message);
+    }
+}
+
+// Initialize on page load
+initializeTools();
+</script>
+{% endblock %}

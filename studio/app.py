@@ -51,6 +51,12 @@ def new_production():
     return render_template('new_production.html')
 
 
+@app.route('/tools')
+def tools_manager():
+    """AI Tools Manager page"""
+    return render_template('tools_manager.html')
+
+
 # ============================================================================
 # API ENDPOINTS
 # ============================================================================
@@ -187,6 +193,130 @@ def post_to_platforms(job_id):
     loop.close()
 
     return jsonify({"job": job.to_dict()})
+
+
+# ============================================================================
+# TOOL CONFIGURATION ENDPOINTS
+# ============================================================================
+
+@app.route('/api/tools/config', methods=['GET'])
+def get_tool_config():
+    """Get current tool configuration"""
+    import json
+    from pathlib import Path
+
+    config_file = Path("data/tool_config.json")
+    if config_file.exists():
+        with open(config_file, 'r') as f:
+            config = json.load(f)
+    else:
+        # Default configuration
+        config = {
+            "script": [],
+            "character": [],
+            "lighting": [],
+            "composition": [],
+            "frame": ["nano-banana-pro"],
+            "video": ["veo-3", "elevenlabs"],
+            "assembly": ["remotion"]
+        }
+
+    return jsonify({"config": config})
+
+
+@app.route('/api/tools/config', methods=['POST'])
+def save_tool_config():
+    """Save tool configuration"""
+    import json
+    from pathlib import Path
+
+    data = request.json
+    config = data.get('config', {})
+
+    # Save to file
+    config_dir = Path("data")
+    config_dir.mkdir(exist_ok=True)
+
+    config_file = config_dir / "tool_config.json"
+    with open(config_file, 'w') as f:
+        json.dump(config, f, indent=2)
+
+    return jsonify({"success": True, "message": "Configuration saved"})
+
+
+@app.route('/api/tools/test', methods=['POST'])
+def test_tool_connections():
+    """Test connections to all configured AI tools"""
+    from studio.providers.kieai_provider import KieAIProvider
+
+    results = {}
+
+    # Test kie.ai connection
+    try:
+        api_key = os.environ.get('KIEAI_API_KEY')
+        if api_key:
+            provider = KieAIProvider(api_key=api_key)
+            # Try to list models as a connection test
+            models = provider.list_available_models()
+            results['kie.ai'] = {
+                "connected": True,
+                "message": f"Connected - {len(models)} models available"
+            }
+        else:
+            results['kie.ai'] = {
+                "connected": False,
+                "message": "API key not configured"
+            }
+    except Exception as e:
+        results['kie.ai'] = {
+            "connected": False,
+            "message": f"Connection failed: {str(e)}"
+        }
+
+    # Test Anthropic (for script agent)
+    try:
+        api_key = os.environ.get('ANTHROPIC_API_KEY')
+        if api_key:
+            results['anthropic'] = {
+                "connected": True,
+                "message": "API key configured"
+            }
+        else:
+            results['anthropic'] = {
+                "connected": False,
+                "message": "API key not configured"
+            }
+    except Exception as e:
+        results['anthropic'] = {
+            "connected": False,
+            "message": str(e)
+        }
+
+    # Test Remotion (just check if it's available)
+    import subprocess
+    try:
+        remotion_check = subprocess.run(
+            ['which', 'remotion'],
+            capture_output=True,
+            text=True
+        )
+        if remotion_check.returncode == 0:
+            results['remotion'] = {
+                "connected": True,
+                "message": "Remotion CLI available"
+            }
+        else:
+            results['remotion'] = {
+                "connected": False,
+                "message": "Remotion CLI not installed"
+            }
+    except Exception as e:
+        results['remotion'] = {
+            "connected": False,
+            "message": "Unable to check Remotion"
+        }
+
+    return jsonify({"results": results})
 
 
 # ============================================================================
