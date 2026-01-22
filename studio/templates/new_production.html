@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}New Production - AI Video Studio{% endblock %}
+
+{% block content %}
+<div style="margin-top: 40px;">
+    <div class="card" style="max-width: 800px; margin: 0 auto;">
+        <h2>Create New Production</h2>
+        <p style="opacity: 0.7; margin-bottom: 30px;">Configure your video production</p>
+
+        <form id="production-form" onsubmit="createProduction(event)">
+            <div style="margin-bottom: 25px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 600;">Video Title *</label>
+                <input type="text" name="title" required
+                       placeholder="e.g., The Future of AI in 2026"
+                       style="width: 100%; padding: 12px; background: #2a2a2a; border: 1px solid #333; border-radius: 8px; color: #fff; font-size: 15px;">
+            </div>
+
+            <div style="margin-bottom: 25px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 600;">Topic/Prompt *</label>
+                <textarea name="topic" rows="4" required
+                          placeholder="Describe what the video should be about. Be specific about key points, tone, and target audience."
+                          style="width: 100%; padding: 12px; background: #2a2a2a; border: 1px solid #333; border-radius: 8px; color: #fff; font-size: 15px; resize: vertical;"></textarea>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px;">
+                <div>
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">Platform *</label>
+                    <select name="platform" required
+                            style="width: 100%; padding: 12px; background: #2a2a2a; border: 1px solid #333; border-radius: 8px; color: #fff; font-size: 15px;">
+                        <option value="youtube">YouTube (16:9)</option>
+                        <option value="tiktok">TikTok (9:16)</option>
+                        <option value="instagram">Instagram Reels (9:16)</option>
+                        <option value="all">Multi-platform</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">Duration (seconds) *</label>
+                    <input type="number" name="duration" value="30" min="10" max="600" required
+                           style="width: 100%; padding: 12px; background: #2a2a2a; border: 1px solid #333; border-radius: 8px; color: #fff; font-size: 15px;">
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px;">
+                <div>
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">Visual Style</label>
+                    <select name="visual_style"
+                            style="width: 100%; padding: 12px; background: #2a2a2a; border: 1px solid #333; border-radius: 8px; color: #fff; font-size: 15px;">
+                        <option value="cinematic">Cinematic</option>
+                        <option value="documentary">Documentary</option>
+                        <option value="vlog">Vlog</option>
+                        <option value="animation">Animation</option>
+                        <option value="minimalist">Minimalist</option>
+                        <option value="vibrant">Vibrant</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">Tone</label>
+                    <select name="tone"
+                            style="width: 100%; padding: 12px; background: #2a2a2a; border: 1px solid #333; border-radius: 8px; color: #fff; font-size: 15px;">
+                        <option value="engaging">Engaging</option>
+                        <option value="inspiring">Inspiring</option>
+                        <option value="educational">Educational</option>
+                        <option value="entertaining">Entertaining</option>
+                        <option value="dramatic">Dramatic</option>
+                        <option value="humorous">Humorous</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 25px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 600;">Production Mode</label>
+                <select name="mode"
+                        style="width: 100%; padding: 12px; background: #2a2a2a; border: 1px solid #333; border-radius: 8px; color: #fff; font-size: 15px;">
+                    <option value="auto">Auto Mode - Run all agents automatically</option>
+                    <option value="review">Review Mode - Pause after each agent for review</option>
+                </select>
+            </div>
+
+            <div style="background: rgba(102, 126, 234, 0.1); padding: 20px; border-radius: 8px; margin-bottom: 25px; border-left: 4px solid #667eea;">
+                <h4 style="margin-bottom: 10px; font-size: 15px;">Production Pipeline</h4>
+                <p style="font-size: 13px; opacity: 0.9; line-height: 1.8;">
+                    Your video will go through 7 sequential agents:<br>
+                    1️⃣ Script Agent → Scene breakdown<br>
+                    2️⃣ Character Lock → Visual consistency<br>
+                    3️⃣ Lighting Agent → Mood and atmosphere<br>
+                    4️⃣ Composition Agent → Camera work<br>
+                    5️⃣ Frame Agent → Start/end frames<br>
+                    6️⃣ Video Agent → Generate clips<br>
+                    7️⃣ Assembly Agent → Final render
+                </p>
+            </div>
+
+            <div style="display: flex; gap: 15px;">
+                <button type="submit" class="btn btn-primary" style="flex: 1;">
+                    🚀 Start Production
+                </button>
+                <a href="/" class="btn btn-secondary" style="padding: 12px 24px;">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+async function createProduction(event) {
+    event.preventDefault();
+
+    const form = event.target;
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData);
+
+    // Disable form
+    const submitBtn = form.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '🔄 Creating...';
+
+    try {
+        // Create job
+        const createResponse = await fetch('/api/jobs', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+
+        if (!createResponse.ok) {
+            throw new Error('Failed to create job');
+        }
+
+        const createData = await createResponse.json();
+        const jobId = createData.job.job_id;
+
+        // Start pipeline
+        const startResponse = await fetch(`/api/jobs/${jobId}/start`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                stop_at: data.mode === 'review' ? 'script' : null
+            })
+        });
+
+        if (!startResponse.ok) {
+            throw new Error('Failed to start pipeline');
+        }
+
+        // Redirect to timeline
+        window.location.href = `/timeline/${jobId}`;
+
+    } catch (error) {
+        alert('Error creating production: ' + error.message);
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '🚀 Start Production';
+    }
+}
+</script>
+{% endblock %}
