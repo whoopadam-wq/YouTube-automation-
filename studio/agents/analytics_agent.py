@@ -160,8 +160,10 @@ class AnalyticsAgent:
         Returns list of videos with metrics
         """
         if not self.youtube_api_key or not self.channel_id:
-            print("   ⚠️  YouTube API key or channel ID not set - using mock data")
-            return self._generate_mock_videos_data()
+            raise ValueError(
+                "YouTube Data API key and channel ID are required for analytics.\n"
+                "Make sure YOUTUBE_DATA_API_KEY is set in environment variables."
+            )
 
         try:
             videos = []
@@ -177,7 +179,7 @@ class AnalyticsAgent:
             data = response.json()
 
             if "items" not in data or len(data["items"]) == 0:
-                return self._generate_mock_videos_data()
+                raise ValueError(f"Channel {self.channel_id} not found or has no uploads playlist")
 
             uploads_playlist = data["items"][0]["contentDetails"]["relatedPlaylists"]["uploads"]
 
@@ -246,7 +248,7 @@ class AnalyticsAgent:
 
         except Exception as e:
             print(f"   ⚠️  YouTube API error: {e}")
-            return self._generate_mock_videos_data()
+            raise ValueError(f"Failed to fetch videos from YouTube API: {str(e)}")
 
     def _parse_youtube_duration(self, duration_str: str) -> int:
         """Parse YouTube duration format (PT1H2M30S) to seconds"""
