@@ -266,6 +266,7 @@
 
             <div class="filter-tabs">
                 <div class="filter-tab active" onclick="filterTools('all')">All</div>
+                <div class="filter-tab" onclick="filterTools('llm')">LLMs</div>
                 <div class="filter-tab" onclick="filterTools('image')">Images</div>
                 <div class="filter-tab" onclick="filterTools('video')">Video</div>
                 <div class="filter-tab" onclick="filterTools('audio')">Audio</div>
@@ -395,6 +396,88 @@
 <script>
 // Available AI tools with metadata
 const aiTools = [
+    // LLMs (Large Language Models)
+    {
+        id: 'claude-3-5-sonnet',
+        name: 'Claude 3.5 Sonnet',
+        icon: '🤖',
+        category: 'llm',
+        description: 'Advanced reasoning and script generation',
+        provider: 'Anthropic',
+        status: 'active'
+    },
+    {
+        id: 'claude-3-opus',
+        name: 'Claude 3 Opus',
+        icon: '🧠',
+        category: 'llm',
+        description: 'Most capable Claude model for complex tasks',
+        provider: 'Anthropic',
+        status: 'available'
+    },
+    {
+        id: 'gpt-4',
+        name: 'GPT-4',
+        icon: '✨',
+        category: 'llm',
+        description: 'OpenAI\'s flagship reasoning model',
+        provider: 'OpenAI',
+        status: 'available'
+    },
+    {
+        id: 'gpt-4-turbo',
+        name: 'GPT-4 Turbo',
+        icon: '⚡',
+        category: 'llm',
+        description: 'Faster, more efficient GPT-4',
+        provider: 'OpenAI',
+        status: 'available'
+    },
+    {
+        id: 'gemini-pro',
+        name: 'Gemini Pro',
+        icon: '💎',
+        category: 'llm',
+        description: 'Google\'s multimodal AI model',
+        provider: 'Google',
+        status: 'available'
+    },
+    {
+        id: 'llama-3-70b',
+        name: 'Llama 3 70B',
+        icon: '🦙',
+        category: 'llm',
+        description: 'Meta\'s powerful open-source LLM',
+        provider: 'Meta',
+        status: 'available'
+    },
+    {
+        id: 'mistral-large',
+        name: 'Mistral Large',
+        icon: '🌊',
+        category: 'llm',
+        description: 'High-performance European LLM',
+        provider: 'Mistral AI',
+        status: 'available'
+    },
+    {
+        id: 'command-r-plus',
+        name: 'Command R+',
+        icon: '🎯',
+        category: 'llm',
+        description: 'Enterprise RAG and tool use',
+        provider: 'Cohere',
+        status: 'available'
+    },
+    {
+        id: 'perplexity',
+        name: 'Perplexity',
+        icon: '🔍',
+        category: 'llm',
+        description: 'Real-time web research LLM',
+        provider: 'Perplexity AI',
+        status: 'available'
+    },
     // Image Generation
     {
         id: 'nano-banana-pro',
