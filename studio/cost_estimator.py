@@ -358,7 +358,7 @@ class CostEstimator:
                 "per_search": 0.001  # $1 per 1000 searches
             },
             "youtube": {
-                "data_api": 0.0  # Free tier generous
+                "data_api": 0.0,  # Free tier generous
                 "analytics_api": 0.0
             }
         }
