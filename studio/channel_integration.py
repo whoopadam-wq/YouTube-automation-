@@ -6,7 +6,7 @@ import os
 import re
 import json
 import requests
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from datetime import datetime
 from studio.agents.ideas_scraper_agent import IdeasScraperAgent
 from studio.agents.analytics_agent import AnalyticsAgent
@@ -364,7 +364,7 @@ class YouTubeChannelIntegration:
     ) -> ChannelProfile:
         """
         Create detailed channel profile by analyzing content
-        Uses Analytics Agent to study channel style (if available)
+        ACTUALLY analyzes uploaded videos to determine niche
         """
         # Initialize default values
         niche = "general"
@@ -373,54 +373,41 @@ class YouTubeChannelIntegration:
         avg_duration = 300
         style_notes = "Channel connected"
 
-        # Try to run analytics if possible
-        try:
-            print(f"   🔍 Attempting to analyze channel content...")
-            self.analytics_agent = AnalyticsAgent(channel_id=channel_id)
+        # STEP 1: Fetch actual videos from the channel
+        print(f"   📹 Fetching uploaded videos...")
+        videos = await self._fetch_channel_videos_with_details(channel_id)
 
-            # Run analysis to understand channel
-            analysis = await self.analytics_agent.analyze_channel_performance(days_back=90)
+        if videos and len(videos) > 0:
+            print(f"   ✅ Found {len(videos)} videos on channel")
 
-            summary = analysis.get('summary', {})
-            insights = analysis.get('insights', [])
+            # STEP 2: Analyze the actual video content to determine niche
+            print(f"   🧠 Analyzing video content to determine niche...")
+            niche_analysis = await self._analyze_videos_for_niche(videos, channel_data)
 
-            # Extract style information from insights
-            for insight in insights:
-                if insight.get('insight_type') == 'topic':
-                    finding = insight.get('finding', '')
-                    if 'Winning topics:' in finding:
-                        topics_str = finding.replace('Winning topics:', '').strip()
-                        top_topics = [t.strip() for t in topics_str.split(',')][:5]
+            niche = niche_analysis.get('niche', 'general')
+            tone = niche_analysis.get('tone', 'engaging')
+            top_topics = niche_analysis.get('topics', [])
 
-            avg_duration = summary.get('avg_duration_seconds', 300)
-            style_notes = f"Analyzed from {summary.get('total_videos', 0)} videos"
+            # Calculate average duration from real videos
+            if videos:
+                total_duration = sum(v.get('duration_seconds', 0) for v in videos)
+                avg_duration = int(total_duration / len(videos)) if len(videos) > 0 else 300
 
-            print(f"   ✅ Analytics complete")
-
-        except Exception as e:
-            print(f"   ⚠️  Could not run analytics: {e}")
-            print(f"   ℹ️  Creating basic profile without analytics")
-            # Continue with basic profile - analytics is optional
-
-        # Determine tone from channel description and title patterns
-        description = channel_data.get('description', '').lower()
-        if any(word in description for word in ['educational', 'learn', 'tutorial']):
-            tone = "educational"
-        elif any(word in description for word in ['entertainment', 'fun', 'comedy']):
-            tone = "entertaining"
-        elif any(word in description for word in ['professional', 'business', 'industry']):
-            tone = "professional"
-
-        # Try to infer niche from description
-        if description:
-            if any(word in description for word in ['tech', 'technology', 'coding', 'programming']):
-                niche = "technology"
-            elif any(word in description for word in ['gaming', 'games', 'gamer']):
-                niche = "gaming"
-            elif any(word in description for word in ['cooking', 'recipe', 'food']):
-                niche = "cooking"
-            elif any(word in description for word in ['fitness', 'workout', 'health']):
-                niche = "fitness"
+            style_notes = f"Analyzed {len(videos)} video(s) - Niche: {niche}"
+            print(f"   ✅ Detected niche: {niche}")
+        else:
+            print(f"   ⚠️  No videos found - using basic profile")
+            # Still try description analysis as fallback
+            description = channel_data.get('description', '').lower()
+            if description:
+                if any(word in description for word in ['tech', 'technology', 'coding', 'programming']):
+                    niche = "technology"
+                elif any(word in description for word in ['gaming', 'games', 'gamer']):
+                    niche = "gaming"
+                elif any(word in description for word in ['cooking', 'recipe', 'food']):
+                    niche = "cooking"
+                elif any(word in description for word in ['fitness', 'workout', 'health']):
+                    niche = "fitness"
 
         # Create profile
         profile = ChannelProfile(
@@ -433,11 +420,183 @@ class YouTubeChannelIntegration:
             avg_duration=avg_duration,
             target_audience="general",
             upload_frequency="regular",
-            top_topics=top_topics if top_topics else ["general content"],
+            top_topics=top_topics if top_topics else [niche],
             style_notes=style_notes
         )
 
         return profile
+
+    async def _fetch_channel_videos_with_details(self, channel_id: str) -> List[Dict[str, Any]]:
+        """
+        Fetch actual videos from the channel with full details
+        Gets title, description, transcript (if available)
+        """
+        if not self.youtube_api_key:
+            return []
+
+        try:
+            # Get uploads playlist ID
+            url = f"https://www.googleapis.com/youtube/v3/channels"
+            params = {
+                "part": "contentDetails",
+                "id": channel_id,
+                "key": self.youtube_api_key
+            }
+            response = requests.get(url, params=params, timeout=10)
+            data = response.json()
+
+            if "items" not in data or len(data["items"]) == 0:
+                return []
+
+            uploads_playlist = data["items"][0]["contentDetails"]["relatedPlaylists"]["uploads"]
+
+            # Get videos from uploads playlist
+            url = f"https://www.googleapis.com/youtube/v3/playlistItems"
+            params = {
+                "part": "snippet,contentDetails",
+                "playlistId": uploads_playlist,
+                "maxResults": 10,  # Get up to 10 most recent videos
+                "key": self.youtube_api_key
+            }
+            response = requests.get(url, params=params, timeout=10)
+            playlist_data = response.json()
+
+            videos = []
+            for item in playlist_data.get("items", []):
+                video_id = item["snippet"]["resourceId"]["videoId"]
+
+                # Get video details including duration
+                video_url = f"https://www.googleapis.com/youtube/v3/videos"
+                video_params = {
+                    "part": "snippet,contentDetails,statistics",
+                    "id": video_id,
+                    "key": self.youtube_api_key
+                }
+                video_response = requests.get(video_url, params=video_params, timeout=10)
+                video_data = video_response.json()
+
+                if "items" in video_data and len(video_data["items"]) > 0:
+                    video_item = video_data["items"][0]
+
+                    # Parse ISO 8601 duration
+                    duration_str = video_item["contentDetails"]["duration"]
+                    duration_seconds = self._parse_duration(duration_str)
+
+                    videos.append({
+                        "video_id": video_id,
+                        "title": video_item["snippet"]["title"],
+                        "description": video_item["snippet"]["description"],
+                        "duration_seconds": duration_seconds,
+                        "views": int(video_item["statistics"].get("viewCount", 0)),
+                        "likes": int(video_item["statistics"].get("likeCount", 0)),
+                        "published_at": video_item["snippet"]["publishedAt"]
+                    })
+
+            return videos
+
+        except Exception as e:
+            print(f"   ⚠️  Error fetching videos: {e}")
+            return []
+
+    def _parse_duration(self, duration_str: str) -> int:
+        """Parse ISO 8601 duration to seconds"""
+        import re
+        pattern = r'PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?'
+        match = re.match(pattern, duration_str)
+        if not match:
+            return 0
+
+        hours = int(match.group(1) or 0)
+        minutes = int(match.group(2) or 0)
+        seconds = int(match.group(3) or 0)
+
+        return hours * 3600 + minutes * 60 + seconds
+
+    async def _analyze_videos_for_niche(
+        self,
+        videos: List[Dict[str, Any]],
+        channel_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Use Claude to analyze actual video content and determine the channel niche
+        This is the REAL analysis using actual video data
+        """
+        if not videos:
+            return {"niche": "general", "tone": "engaging", "topics": []}
+
+        # Check if we have Anthropic API key
+        anthropic_key = os.environ.get('ANTHROPIC_API_KEY')
+        if not anthropic_key:
+            print(f"   ⚠️  ANTHROPIC_API_KEY not set - using basic niche detection")
+            return {"niche": "general", "tone": "engaging", "topics": []}
+
+        try:
+            from anthropic import Anthropic
+            client = Anthropic(api_key=anthropic_key)
+
+            # Prepare video content for analysis
+            video_summaries = []
+            for video in videos[:5]:  # Analyze up to 5 most recent videos
+                video_summaries.append(
+                    f"Title: {video['title']}\n"
+                    f"Description: {video['description'][:200]}...\n"
+                    f"Duration: {video['duration_seconds']}s\n"
+                    f"Views: {video['views']}\n"
+                )
+
+            channel_description = channel_data.get('description', '')
+            channel_name = channel_data.get('title', '')
+
+            prompt = f"""Analyze this YouTube channel's content and determine the EXACT niche.
+
+Channel Name: {channel_name}
+Channel Description: {channel_description}
+
+Recent Videos:
+{chr(10).join(video_summaries)}
+
+Based on the video titles, descriptions, and channel info, determine:
+1. The SPECIFIC niche (be precise - don't say "general", identify the actual topic)
+2. The tone/style (educational, entertaining, professional, casual, etc.)
+3. Top 3 topics this channel covers
+
+Return JSON:
+{{
+    "niche": "specific niche here (e.g., 'survival skills', 'primitive technology', 'DIY crafts', 'science experiments', etc.)",
+    "tone": "tone here",
+    "topics": ["topic1", "topic2", "topic3"]
+}}
+
+Be SPECIFIC about the niche. Examples of good niches:
+- "primitive technology and survival skills"
+- "DIY home improvement"
+- "science experiments and education"
+- "cooking and recipes"
+- "gaming walkthroughs"
+- "fitness and workout routines"
+
+DO NOT say "general" - identify the actual content focus."""
+
+            response = client.messages.create(
+                model="claude-3-5-sonnet-20241022",
+                max_tokens=1000,
+                messages=[{"role": "user", "content": prompt}]
+            )
+
+            response_text = response.content[0].text
+
+            # Extract JSON
+            import json
+            start_idx = response_text.find('{')
+            end_idx = response_text.rfind('}') + 1
+            if start_idx != -1 and end_idx > start_idx:
+                analysis = json.loads(response_text[start_idx:end_idx])
+                return analysis
+
+        except Exception as e:
+            print(f"   ⚠️  Claude analysis failed: {e}")
+
+        return {"niche": "general", "tone": "engaging", "topics": []}
 
     async def _run_initial_analytics(self, channel_id: str):
         """Run initial analytics to learn from channel"""
