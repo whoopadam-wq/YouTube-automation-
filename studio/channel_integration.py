@@ -106,10 +106,22 @@ class YouTubeChannelIntegration:
         print(f"🔗 Channel Integration: Connecting to channel...")
 
         # Step 1: Extract channel ID from input
-        channel_id = self._extract_channel_id(channel_input)
+        try:
+            channel_id = self._extract_channel_id(channel_input)
+        except Exception as e:
+            # If _extract_channel_id raises an error, pass it through
+            raise
 
         if not channel_id:
-            raise ValueError("Could not extract channel ID from input")
+            raise ValueError(
+                f"Could not extract channel ID from: {channel_input}\n\n"
+                f"Supported formats:\n"
+                f"• https://www.youtube.com/@YourChannel\n"
+                f"• https://www.youtube.com/channel/UCxxxxxxxx\n"
+                f"• https://www.youtube.com/c/YourChannel\n"
+                f"• UCxxxxxxxx (direct channel ID)\n\n"
+                f"Make sure the URL is complete and correct."
+            )
 
         print(f"   📌 Channel ID: {channel_id}")
 
@@ -174,9 +186,9 @@ class YouTubeChannelIntegration:
     def _resolve_username_to_channel_id(self, username: str) -> Optional[str]:
         """Resolve @username to channel ID using YouTube API"""
         if not self.youtube_api_key:
-            print(f"   ⚠️  YouTube API key needed to resolve username")
-            return None
+            raise ValueError("YouTube API key is required to resolve username to channel ID")
 
+        # Method 1: Try forHandle (for new @handle format)
         try:
             url = f"https://www.googleapis.com/youtube/v3/channels"
             params = {
@@ -189,12 +201,62 @@ class YouTubeChannelIntegration:
             data = response.json()
 
             if "items" in data and len(data["items"]) > 0:
+                print(f"   ✅ Resolved @{username} via forHandle")
                 return data["items"][0]["id"]
 
         except Exception as e:
-            print(f"   ⚠️  Could not resolve username: {e}")
+            print(f"   ⚠️  forHandle method failed: {e}")
 
-        return None
+        # Method 2: Try forUsername (for legacy usernames)
+        try:
+            url = f"https://www.googleapis.com/youtube/v3/channels"
+            params = {
+                "part": "id",
+                "forUsername": username,
+                "key": self.youtube_api_key
+            }
+
+            response = requests.get(url, params=params, timeout=10)
+            data = response.json()
+
+            if "items" in data and len(data["items"]) > 0:
+                print(f"   ✅ Resolved @{username} via forUsername")
+                return data["items"][0]["id"]
+
+        except Exception as e:
+            print(f"   ⚠️  forUsername method failed: {e}")
+
+        # Method 3: Try search API as last resort
+        try:
+            url = f"https://www.googleapis.com/youtube/v3/search"
+            params = {
+                "part": "snippet",
+                "q": username,
+                "type": "channel",
+                "maxResults": 1,
+                "key": self.youtube_api_key
+            }
+
+            response = requests.get(url, params=params, timeout=10)
+            data = response.json()
+
+            if "items" in data and len(data["items"]) > 0:
+                channel_id = data["items"][0]["snippet"]["channelId"]
+                print(f"   ✅ Resolved @{username} via search")
+                return channel_id
+
+        except Exception as e:
+            print(f"   ⚠️  Search method failed: {e}")
+
+        raise ValueError(
+            f"Could not resolve @{username} to a channel ID.\n\n"
+            f"This could mean:\n"
+            f"1. The channel doesn't exist or was deleted\n"
+            f"2. The handle/username is incorrect\n"
+            f"3. The channel is private\n\n"
+            f"Try using the direct channel URL format instead:\n"
+            f"https://www.youtube.com/channel/UCxxxxxxxx"
+        )
 
     def _resolve_custom_url_to_channel_id(self, custom_name: str) -> Optional[str]:
         """Resolve custom URL to channel ID"""
