@@ -25,8 +25,10 @@ class ScriptAgent:
     def __init__(self):
         api_key = os.environ.get('ANTHROPIC_API_KEY')
         if not api_key:
-            raise ValueError("ANTHROPIC_API_KEY not set")
-        self.client = Anthropic(api_key=api_key)
+            print("⚠️  ANTHROPIC_API_KEY not set - Script Agent will use fallback mode")
+            self.client = None
+        else:
+            self.client = Anthropic(api_key=api_key)
         self.model = "claude-3-5-sonnet-20241022"
 
         # For web scraping and research
@@ -45,6 +47,11 @@ class ScriptAgent:
             List of SceneClip objects with script data populated
         """
         print(f"📝 Script Agent: Generating script for '{job.title}'...")
+
+        # Check if API key is available
+        if not self.client:
+            print(f"   ⚠️  No Anthropic API key - using fallback script")
+            return self._generate_fallback_script(job)
 
         # Step 1: Research phase (if enabled)
         research_context = ""
@@ -378,3 +385,24 @@ PLATFORM: Instagram Reels
             "emotional_beat": "engaging",
             "script_content": text[:500]
         }]
+
+    def _generate_fallback_script(self, job: ProductionJob) -> List[SceneClip]:
+        """Generate a basic fallback script when API key is not available"""
+        scene_count = self._estimate_scene_count(job.duration_target)
+        scene_duration = job.duration_target / scene_count
+
+        clips = []
+        for i in range(scene_count):
+            clip = SceneClip(
+                clip_id=f"{job.job_id}_scene_{i + 1}",
+                sequence_number=i + 1,
+                script_content=f"Scene {i + 1} about {job.topic}",
+                narration_text=f"This is scene {i + 1} covering {job.topic}",
+                scene_description=f"Visual scene {i + 1} in {job.visual_style} style",
+                emotional_beat="engaging",
+                duration=scene_duration
+            )
+            clips.append(clip)
+
+        print(f"✅ Script Agent: Generated {len(clips)} fallback scenes (add ANTHROPIC_API_KEY for full script generation)")
+        return clips
