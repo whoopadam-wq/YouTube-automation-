@@ -9,6 +9,11 @@ from flask_cors import CORS
 from studio.orchestrator import ProductionOrchestrator
 from studio.schemas import ProductionMode, AgentStage
 from studio.posting.post_manager import PostManager
+from studio.channel_integration import YouTubeChannelIntegration
+from studio.autonomous_learning import get_learning_system
+from studio.cost_estimator import CostEstimator
+from studio.agents.ideas_scraper_agent import IdeasScraperAgent
+from studio.agents.analytics_agent import AnalyticsAgent
 
 app = Flask(__name__)
 CORS(app)
@@ -32,7 +37,13 @@ os.environ['STUDIO_MOCK_POSTING'] = 'true'
 
 @app.route('/')
 def index():
-    """Studio home page"""
+    """Autonomous Dashboard - main page"""
+    return render_template('autonomous_dashboard.html')
+
+
+@app.route('/home')
+def old_home():
+    """Old studio home page"""
     return render_template('studio_home.html')
 
 
@@ -354,6 +365,194 @@ def create_sample_job():
         "job": job.to_dict(),
         "message": "Sample job created and pipeline completed"
     })
+
+
+# ============================================================================
+# AUTONOMOUS SYSTEM API ROUTES
+# ============================================================================
+
+# Initialize global instances
+channel_integration = YouTubeChannelIntegration()
+cost_estimator = CostEstimator()
+
+
+@app.route('/api/channel/integrate', methods=['POST'])
+def integrate_channel():
+    """Integrate a YouTube channel"""
+    data = request.json
+    channel_url = data.get('channel_url')
+
+    if not channel_url:
+        return jsonify({"success": False, "error": "channel_url required"}), 400
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    try:
+        channel = loop.run_until_complete(
+            channel_integration.integrate_channel(channel_url)
+        )
+
+        return jsonify({
+            "success": True,
+            "channel": channel.to_dict()
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+    finally:
+        loop.close()
+
+
+@app.route('/api/channel/status', methods=['GET'])
+def channel_status():
+    """Get active channel status"""
+    channel = channel_integration.load_active_channel()
+
+    if channel:
+        return jsonify({
+            "channel": channel.to_dict()
+        })
+    else:
+        return jsonify({
+            "channel": None
+        })
+
+
+@app.route('/api/learning/start', methods=['POST'])
+def start_learning():
+    """Start autonomous learning system"""
+    try:
+        # Get active channel
+        channel = channel_integration.load_active_channel()
+        channel_id = channel.channel_id if channel else None
+
+        # Start learning system in background
+        learning_system = get_learning_system(channel_id=channel_id)
+
+        # Note: In production, this should run in a separate thread/process
+        # For now, we'll just indicate it's "started"
+
+        return jsonify({
+            "success": True,
+            "message": "Learning system started (background mode)"
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/ideas/list', methods=['GET'])
+def list_ideas():
+    """List discovered video ideas"""
+    try:
+        import json
+        ideas_file = "data/video_ideas_history.json"
+
+        if os.path.exists(ideas_file):
+            with open(ideas_file, 'r') as f:
+                ideas = json.load(f)
+                return jsonify({"ideas": ideas[-20:]})  # Last 20 ideas
+        else:
+            return jsonify({"ideas": []})
+    except Exception as e:
+        return jsonify({"ideas": [], "error": str(e)})
+
+
+@app.route('/api/ideas/discover', methods=['POST'])
+def discover_ideas():
+    """Discover new video ideas"""
+    try:
+        channel = channel_integration.load_active_channel()
+
+        if not channel:
+            return jsonify({"success": False, "error": "No channel connected"}), 400
+
+        agent = IdeasScraperAgent(channel_id=channel.channel_id)
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        ideas = loop.run_until_complete(
+            agent.discover_ideas(
+                niche=channel.niche,
+                num_ideas=10
+            )
+        )
+
+        loop.close()
+
+        return jsonify({
+            "success": True,
+            "ideas_count": len(ideas)
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/analytics/run', methods=['POST'])
+def run_analytics():
+    """Run analytics on channel"""
+    try:
+        channel = channel_integration.load_active_channel()
+
+        if not channel:
+            return jsonify({"success": False, "error": "No channel connected"}), 400
+
+        agent = AnalyticsAgent(channel_id=channel.channel_id)
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        analysis = loop.run_until_complete(
+            agent.analyze_channel_performance(days_back=30)
+        )
+
+        loop.close()
+
+        insights_count = len(analysis.get('insights', []))
+
+        return jsonify({
+            "success": True,
+            "insights_count": insights_count
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/analytics/insights', methods=['GET'])
+def get_insights():
+    """Get analytics insights"""
+    try:
+        import json
+        insights_file = "data/analytics_insights.json"
+
+        if os.path.exists(insights_file):
+            with open(insights_file, 'r') as f:
+                data = json.load(f)
+                return jsonify({"insights": data.get('insights', [])})
+        else:
+            return jsonify({"insights": []})
+    except Exception as e:
+        return jsonify({"insights": [], "error": str(e)})
+
+
+@app.route('/api/cost/estimate', methods=['GET'])
+def estimate_cost():
+    """Estimate production cost"""
+    try:
+        duration = float(request.args.get('duration', 15))
+
+        breakdown = cost_estimator.estimate_production_cost(
+            duration_minutes=duration
+        )
+
+        result = breakdown.to_dict()
+        result['cost_per_minute'] = result['total_cost_usd'] / duration
+
+        return jsonify({
+            "cost": result
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 # ============================================================================

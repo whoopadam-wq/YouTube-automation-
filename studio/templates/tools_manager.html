@@ -16,9 +16,31 @@
         background: #1a1a1a;
         border-radius: 12px;
         padding: 20px;
-        height: fit-content;
+        max-height: 85vh;
         position: sticky;
         top: 20px;
+        display: flex;
+        flex-direction: column;
+    }
+
+    #tools-container {
+        overflow-y: auto;
+        max-height: 70vh;
+        padding-right: 10px;
+    }
+
+    #tools-container::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    #tools-container::-webkit-scrollbar-track {
+        background: #2a2a2a;
+        border-radius: 10px;
+    }
+
+    #tools-container::-webkit-scrollbar-thumb {
+        background: #667eea;
+        border-radius: 10px;
     }
 
     .tool-palette h3 {
@@ -279,7 +301,33 @@
 
         <!-- Right: Agents Panel -->
         <div class="agents-panel">
-            <h3 style="margin-bottom: 20px; color: #667eea;">Production Agents</h3>
+            <h3 style="margin-bottom: 20px; color: #667eea;">Pre-Production Agents</h3>
+
+            <!-- Ideas Scraper Agent -->
+            <div class="agent-card" data-agent="ideas-scraper" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)">
+                <div class="agent-header">
+                    <div class="agent-name">🔍 Ideas Scraper Agent</div>
+                    <div class="agent-status inactive">
+                        <span class="connection-indicator disconnected"></span>New
+                    </div>
+                </div>
+                <p style="opacity: 0.7; font-size: 13px; margin-bottom: 15px;">Discovers trending topics automatically</p>
+                <div class="agent-tools empty" data-agent="ideas-scraper"></div>
+            </div>
+
+            <!-- Analytics Agent -->
+            <div class="agent-card" data-agent="analytics" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)">
+                <div class="agent-header">
+                    <div class="agent-name">📊 Analytics Agent</div>
+                    <div class="agent-status inactive">
+                        <span class="connection-indicator disconnected"></span>New
+                    </div>
+                </div>
+                <p style="opacity: 0.7; font-size: 13px; margin-bottom: 15px;">Studies channel performance and learns</p>
+                <div class="agent-tools empty" data-agent="analytics"></div>
+            </div>
+
+            <h3 style="margin-bottom: 20px; margin-top: 30px; color: #667eea;">Production Agents</h3>
 
             <!-- Script Agent -->
             <div class="agent-card" data-agent="script" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)">
@@ -370,6 +418,44 @@
                         <span class="remove-tool" onclick="removeTool(event, 'video', 'elevenlabs')">×</span>
                     </div>
                 </div>
+            </div>
+
+            <h3 style="margin-bottom: 20px; margin-top: 30px; color: #667eea;">Post-Production Agents</h3>
+
+            <!-- Sound Engineer Agent -->
+            <div class="agent-card" data-agent="sound-engineer" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)">
+                <div class="agent-header">
+                    <div class="agent-name">🎵 Sound Engineer Agent</div>
+                    <div class="agent-status inactive">
+                        <span class="connection-indicator disconnected"></span>New
+                    </div>
+                </div>
+                <p style="opacity: 0.7; font-size: 13px; margin-bottom: 15px;">Adds music, SFX, professional audio mix</p>
+                <div class="agent-tools empty" data-agent="sound-engineer"></div>
+            </div>
+
+            <!-- Remotion Motion Graphics Agent -->
+            <div class="agent-card" data-agent="remotion" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)">
+                <div class="agent-header">
+                    <div class="agent-name">⚛️ Remotion Agent</div>
+                    <div class="agent-status inactive">
+                        <span class="connection-indicator disconnected"></span>New
+                    </div>
+                </div>
+                <p style="opacity: 0.7; font-size: 13px; margin-bottom: 15px;">Creates Vox-style motion graphics</p>
+                <div class="agent-tools empty" data-agent="remotion"></div>
+            </div>
+
+            <!-- Thumbnail Agent -->
+            <div class="agent-card" data-agent="thumbnail" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)">
+                <div class="agent-header">
+                    <div class="agent-name">🖼️ Thumbnail Agent</div>
+                    <div class="agent-status inactive">
+                        <span class="connection-indicator disconnected"></span>New
+                    </div>
+                </div>
+                <p style="opacity: 0.7; font-size: 13px; margin-bottom: 15px;">Generates CTR-optimized thumbnails</p>
+                <div class="agent-tools empty" data-agent="thumbnail"></div>
             </div>
 
             <!-- Assembly Agent -->
