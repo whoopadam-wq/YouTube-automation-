@@ -221,15 +221,15 @@ class CostEstimator:
         """
         Estimate cost of video generation
         Uses Veo 3 via kie.ai
+
+        Veo 3 charges per video scene generated (typically 5-second clips)
+        NOT per second of final video
         """
-        # Veo 3 charges per second of video generated
-        # Average scene duration
-        avg_scene_duration = total_duration_seconds / num_scenes
+        # Get cost per scene generation
+        cost_per_scene = self.pricing["kieai"]["veo_3"]["per_scene"]
 
-        # Veo 3 pricing
-        cost_per_second = self.pricing["kieai"]["veo_3"]["per_second"]
-
-        return total_duration_seconds * cost_per_second
+        # Total cost is number of scenes × cost per scene
+        return num_scenes * cost_per_scene
 
     def _estimate_audio_cost(
         self,
@@ -342,16 +342,16 @@ class CostEstimator:
             },
             "kieai": {
                 "nano_banana_pro": {
-                    "per_image": 0.02  # Estimated
+                    "per_image": 0.02  # Kie.ai pricing
                 },
                 "veo_3": {
-                    "per_second": 0.10  # Estimated $0.10 per second of video
+                    "per_scene": 0.08  # Per video scene generated (5-second clips)
                 },
                 "elevenlabs": {
-                    "per_character": 0.0003  # Estimated
+                    "per_character": 0.0003  # Kie.ai pricing
                 },
                 "musicgen": {
-                    "per_generation": 0.05
+                    "per_generation": 0.05  # Kie.ai pricing
                 }
             },
             "serper": {

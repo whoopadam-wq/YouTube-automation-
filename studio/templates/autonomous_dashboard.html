@@ -445,10 +445,15 @@ async function startLearning() {
         const data = await response.json();
 
         if (data.success) {
-            alert('✅ Autonomous learning system started!');
+            alert('✅ Autonomous learning system started!\n\nThe system will now:\n• Monitor performance every 6 hours\n• Check trends every 2 hours\n• Learn from patterns automatically');
             document.getElementById('learning-status').textContent = 'Running';
             document.querySelector('.status-indicator').className = 'status-indicator status-running';
             btn.textContent = '✅ Running';
+        } else {
+            // Show detailed error message
+            alert('❌ Learning system failed to start:\n\n' + (data.error || 'Unknown error'));
+            btn.disabled = false;
+            btn.textContent = '🚀 Start Autonomous Learning';
         }
     } catch (error) {
         alert('❌ Error: ' + error.message);
@@ -501,6 +506,9 @@ async function discoverIdeas() {
         if (data.success) {
             alert(`✅ Discovered ${data.ideas_count} new ideas!`);
             loadIdeas();
+        } else {
+            // Show detailed error message
+            alert('❌ Ideas discovery failed:\n\n' + (data.error || 'Unknown error'));
         }
     } catch (error) {
         alert('❌ Error: ' + error.message);
@@ -524,6 +532,9 @@ async function runAnalytics() {
         if (data.success) {
             alert(`✅ Analysis complete! Found ${data.insights_count} insights`);
             loadInsights();
+        } else {
+            // Show detailed error message
+            alert('❌ Analytics failed:\n\n' + (data.error || 'Unknown error'));
         }
     } catch (error) {
         alert('❌ Error: ' + error.message);

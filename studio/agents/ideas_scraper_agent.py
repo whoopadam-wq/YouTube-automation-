@@ -315,26 +315,54 @@ Return JSON:
     async def _research_evergreen_topics(self, niche: str) -> List[Dict]:
         """
         Find evergreen content opportunities that always perform well
+        Uses REAL API data, not generic patterns
         """
         evergreen = []
 
-        # Common evergreen patterns
-        evergreen_patterns = [
-            f"How to {niche} for beginners",
-            f"{niche} mistakes to avoid",
-            f"Best {niche} tips and tricks",
-            f"{niche} explained simply",
-            f"Ultimate {niche} guide"
-        ]
+        # Use Serper API to find real evergreen content
+        if self.serper_api_key:
+            try:
+                # Search for proven evergreen content patterns
+                queries = [
+                    f"how to {niche} for beginners tutorial",
+                    f"{niche} mistakes to avoid common errors",
+                    f"best {niche} tips tricks guide",
+                    f"{niche} explained beginner friendly",
+                    f"ultimate {niche} guide complete"
+                ]
 
-        for pattern in evergreen_patterns:
-            evergreen.append({
-                "topic": pattern,
-                "snippet": f"Evergreen content opportunity: {pattern}",
-                "source_url": "",
-                "type": "evergreen",
-                "discovered_at": datetime.now().isoformat()
-            })
+                for query in queries:
+                    headers = {
+                        "X-API-KEY": self.serper_api_key,
+                        "Content-Type": "application/json"
+                    }
+                    payload = {"q": query, "num": 5}
+
+                    response = requests.post(
+                        "https://google.serper.dev/search",
+                        headers=headers,
+                        json=payload,
+                        timeout=10
+                    )
+
+                    if response.status_code == 200:
+                        results = response.json()
+                        for result in results.get('organic', [])[:3]:
+                            evergreen.append({
+                                "topic": result.get('title', ''),
+                                "snippet": result.get('snippet', ''),
+                                "source_url": result.get('link', ''),
+                                "type": "evergreen",
+                                "discovered_at": datetime.now().isoformat()
+                            })
+
+            except Exception as e:
+                print(f"   ⚠️  Serper API error (evergreen): {e}")
+
+        # No fallback patterns - require real data
+        if len(evergreen) == 0:
+            print(f"   ⚠️  No evergreen topics found. Set SERPER_API_KEY for real content discovery.")
+            print(f"   Get API key: https://serper.dev/")
 
         return evergreen
 
