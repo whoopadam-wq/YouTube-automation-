@@ -518,85 +518,81 @@ class YouTubeChannelIntegration:
         channel_data: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
-        Use Claude to analyze actual video content and determine the channel niche
-        This is the REAL analysis using actual video data
+        Analyze videos to determine channel niche
+        Uses smart keyword matching that works WITHOUT Claude API credits
         """
         if not videos:
             return {"niche": "general", "tone": "engaging", "topics": []}
 
-        # Check if we have Anthropic API key
-        anthropic_key = os.environ.get('ANTHROPIC_API_KEY')
-        if not anthropic_key:
-            print(f"   ⚠️  ANTHROPIC_API_KEY not set - using basic niche detection")
-            return {"niche": "general", "tone": "engaging", "topics": []}
+        print(f"   🔍 Analyzing video content with keyword detection...")
 
-        try:
-            from anthropic import Anthropic
-            client = Anthropic(api_key=anthropic_key)
+        # Collect all text to analyze
+        all_text = []
+        for video in videos[:5]:
+            all_text.append(video['title'].lower())
+            all_text.append(video['description'].lower()[:500])
 
-            # Prepare video content for analysis
-            video_summaries = []
-            for video in videos[:5]:  # Analyze up to 5 most recent videos
-                video_summaries.append(
-                    f"Title: {video['title']}\n"
-                    f"Description: {video['description'][:200]}...\n"
-                    f"Duration: {video['duration_seconds']}s\n"
-                    f"Views: {video['views']}\n"
-                )
+        channel_description = channel_data.get('description', '').lower()
+        channel_name = channel_data.get('title', '').lower()
+        all_text.append(channel_description)
+        all_text.append(channel_name)
 
-            channel_description = channel_data.get('description', '')
-            channel_name = channel_data.get('title', '')
+        combined_text = ' '.join(all_text)
 
-            prompt = f"""Analyze this YouTube channel's content and determine the EXACT niche.
+        print(f"   📝 Analyzing text: {combined_text[:200]}...")
 
-Channel Name: {channel_name}
-Channel Description: {channel_description}
+        # Comprehensive niche keywords
+        niche_keywords = {
+            "primitive technology": ["primitive", "bushcraft", "survival", "wilderness", "stone age", "ancient", "traditional crafts", "neolithic"],
+            "survival skills": ["survival", "wilderness", "bushcraft", "camping", "outdoor", "prepping", "emergency"],
+            "DIY and crafts": ["diy", "craft", "handmade", "tutorial", "how to make", "build", "create"],
+            "cooking": ["recipe", "cooking", "food", "kitchen", "chef", "baking", "cuisine"],
+            "gaming": ["gaming", "gameplay", "walkthrough", "let's play", "game review", "esports"],
+            "fitness": ["workout", "fitness", "gym", "exercise", "training", "muscle", "weight"],
+            "technology": ["tech", "technology", "coding", "programming", "software", "computer", "ai"],
+            "science": ["science", "experiment", "physics", "chemistry", "biology", "research"],
+            "education": ["tutorial", "learn", "course", "lesson", "teaching", "education"],
+            "music": ["music", "song", "cover", "instrument", "singing", "band", "melody"],
+            "comedy": ["comedy", "funny", "humor", "prank", "jokes", "laugh", "sketch"],
+            "vlog": ["vlog", "daily", "day in", "lifestyle", "personal", "my life"],
+            "review": ["review", "unboxing", "comparison", "vs", "pros and cons", "worth it"],
+            "art": ["art", "drawing", "painting", "sketch", "design", "creative", "illustration"]
+        }
 
-Recent Videos:
-{chr(10).join(video_summaries)}
+        # Score each niche
+        niche_scores = {}
+        for niche, keywords in niche_keywords.items():
+            score = sum(combined_text.count(keyword) for keyword in keywords)
+            if score > 0:
+                niche_scores[niche] = score
+                print(f"      - {niche}: {score} matches")
 
-Based on the video titles, descriptions, and channel info, determine:
-1. The SPECIFIC niche (be precise - don't say "general", identify the actual topic)
-2. The tone/style (educational, entertaining, professional, casual, etc.)
-3. Top 3 topics this channel covers
+        # Get the best matching niche
+        if niche_scores:
+            detected_niche = max(niche_scores, key=niche_scores.get)
+            confidence = niche_scores[detected_niche]
+            print(f"   ✅ Detected niche: '{detected_niche}' (confidence: {confidence} keyword matches)")
 
-Return JSON:
-{{
-    "niche": "specific niche here (e.g., 'survival skills', 'primitive technology', 'DIY crafts', 'science experiments', etc.)",
-    "tone": "tone here",
-    "topics": ["topic1", "topic2", "topic3"]
-}}
+            # Extract main topics from video titles
+            topics = [video['title'] for video in videos[:3]]
 
-Be SPECIFIC about the niche. Examples of good niches:
-- "primitive technology and survival skills"
-- "DIY home improvement"
-- "science experiments and education"
-- "cooking and recipes"
-- "gaming walkthroughs"
-- "fitness and workout routines"
+            # Detect tone
+            tone = "engaging"
+            if any(word in combined_text for word in ["tutorial", "learn", "how to"]):
+                tone = "educational"
+            elif any(word in combined_text for word in ["funny", "comedy", "prank"]):
+                tone = "entertaining"
 
-DO NOT say "general" - identify the actual content focus."""
+            return {
+                "niche": detected_niche,
+                "tone": tone,
+                "topics": topics
+            }
 
-            response = client.messages.create(
-                model="claude-3-5-sonnet-20241022",
-                max_tokens=1000,
-                messages=[{"role": "user", "content": prompt}]
-            )
-
-            response_text = response.content[0].text
-
-            # Extract JSON
-            import json
-            start_idx = response_text.find('{')
-            end_idx = response_text.rfind('}') + 1
-            if start_idx != -1 and end_idx > start_idx:
-                analysis = json.loads(response_text[start_idx:end_idx])
-                return analysis
-
-        except Exception as e:
-            print(f"   ⚠️  Claude analysis failed: {e}")
-
-        return {"niche": "general", "tone": "engaging", "topics": []}
+        print(f"   ⚠️  No keyword matches found, using first video title as fallback")
+        # Last resort - use first video title
+        first_video_title = videos[0]['title'] if videos else "general"
+        return {"niche": first_video_title, "tone": "engaging", "topics": [first_video_title]}
 
     async def _run_initial_analytics(self, channel_id: str):
         """Run initial analytics to learn from channel"""
