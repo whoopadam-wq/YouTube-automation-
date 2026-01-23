@@ -139,12 +139,20 @@ class YouTubeChannelIntegration:
         # Step 5: Run analytics if requested
         if auto_analyze:
             print(f"   📊 Running analytics analysis...")
-            await self._run_initial_analytics(channel_id)
+            try:
+                await self._run_initial_analytics(channel_id)
+            except Exception as e:
+                print(f"   ⚠️  Analytics failed: {e}")
+                print(f"   ℹ️  You can run analytics later from the dashboard")
 
         # Step 6: Discover video ideas if requested
         if auto_discover_ideas:
             print(f"   💡 Discovering video ideas...")
-            await self._discover_initial_ideas(channel_profile)
+            try:
+                await self._discover_initial_ideas(channel_profile)
+            except Exception as e:
+                print(f"   ⚠️  Ideas discovery failed: {e}")
+                print(f"   ℹ️  You can discover ideas later from the dashboard")
 
         print(f"✅ Channel Integration: '{channel_profile.channel_name}' is now connected")
         print(f"   📺 {channel_profile.subscriber_count:,} subscribers")
@@ -159,8 +167,17 @@ class YouTubeChannelIntegration:
         - https://www.youtube.com/channel/UCxxxxx
         - https://www.youtube.com/@username
         - UCxxxxx (direct channel ID)
+        - youtube.com/@username/UCxxxxx (user providing ID directly)
         """
-        # Direct channel ID format
+        # First, look for any UC channel ID pattern anywhere in the input
+        # This handles cases like: youtube.com/@username/UCh27s70sw2lhLHqmJ72z__A
+        uc_pattern = re.search(r'\b(UC[a-zA-Z0-9_-]{22})\b', channel_input)
+        if uc_pattern:
+            channel_id = uc_pattern.group(1)
+            print(f"   📌 Extracted Channel ID directly: {channel_id}")
+            return channel_id
+
+        # Direct channel ID format (clean input)
         if channel_input.startswith('UC') and len(channel_input) == 24:
             return channel_input
 
@@ -173,6 +190,7 @@ class YouTubeChannelIntegration:
         username_match = re.search(r'/@([a-zA-Z0-9_-]+)', channel_input)
         if username_match:
             username = username_match.group(1)
+            print(f"   🔍 Resolving @{username} to Channel ID...")
             return self._resolve_username_to_channel_id(username)
 
         # Custom URL format: /c/channelname
@@ -285,15 +303,29 @@ class YouTubeChannelIntegration:
                 "key": self.youtube_api_key
             }
 
+            print(f"   📡 Calling YouTube API for channel: {channel_id}")
             response = requests.get(url, params=params, timeout=10)
             data = response.json()
 
+            # Check for API errors
+            if "error" in data:
+                error_msg = data["error"].get("message", "Unknown API error")
+                raise ValueError(f"YouTube API Error: {error_msg}")
+
             if "items" not in data or len(data["items"]) == 0:
-                raise ValueError(f"Channel {channel_id} not found")
+                raise ValueError(
+                    f"Channel {channel_id} not found.\n\n"
+                    f"This could mean:\n"
+                    f"1. The Channel ID is incorrect\n"
+                    f"2. The channel is private or deleted\n"
+                    f"3. The channel was suspended\n\n"
+                    f"Please verify the Channel ID is correct.\n"
+                    f"You can find your Channel ID in YouTube Studio > Settings > Channel > Advanced settings"
+                )
 
             channel_item = data["items"][0]
 
-            return {
+            channel_info = {
                 "id": channel_id,
                 "title": channel_item["snippet"]["title"],
                 "description": channel_item["snippet"]["description"],
@@ -305,9 +337,25 @@ class YouTubeChannelIntegration:
                 "custom_url": channel_item["snippet"].get("customUrl", "")
             }
 
+            print(f"   ✅ Found channel: {channel_info['title']}")
+            print(f"   📊 {channel_info['subscriber_count']:,} subscribers, {channel_info['video_count']} videos")
+
+            return channel_info
+
+        except requests.exceptions.RequestException as e:
+            raise ValueError(
+                f"Network error connecting to YouTube API: {e}\n\n"
+                f"Please check your internet connection and try again."
+            )
+        except ValueError:
+            # Re-raise ValueError as-is (these are our custom error messages)
+            raise
         except Exception as e:
-            print(f"   ⚠️  Failed to fetch channel info: {e}")
-            return self._get_mock_channel_data(channel_id)
+            raise ValueError(
+                f"Unexpected error fetching channel info: {e}\n\n"
+                f"Channel ID: {channel_id}\n"
+                f"Please verify the Channel ID is correct."
+            )
 
     async def _create_channel_profile(
         self,
@@ -316,28 +364,43 @@ class YouTubeChannelIntegration:
     ) -> ChannelProfile:
         """
         Create detailed channel profile by analyzing content
-        Uses Analytics Agent to study channel style
+        Uses Analytics Agent to study channel style (if available)
         """
-        # Initialize analytics agent for this channel
-        self.analytics_agent = AnalyticsAgent(channel_id=channel_id)
-
-        # Run analysis to understand channel
-        analysis = await self.analytics_agent.analyze_channel_performance(days_back=90)
-
-        summary = analysis.get('summary', {})
-        insights = analysis.get('insights', [])
-
-        # Extract style information from insights
+        # Initialize default values
         niche = "general"
         tone = "engaging"
         top_topics = []
+        avg_duration = 300
+        style_notes = "Channel connected"
 
-        for insight in insights:
-            if insight.get('insight_type') == 'topic':
-                finding = insight.get('finding', '')
-                if 'Winning topics:' in finding:
-                    topics_str = finding.replace('Winning topics:', '').strip()
-                    top_topics = [t.strip() for t in topics_str.split(',')][:5]
+        # Try to run analytics if possible
+        try:
+            print(f"   🔍 Attempting to analyze channel content...")
+            self.analytics_agent = AnalyticsAgent(channel_id=channel_id)
+
+            # Run analysis to understand channel
+            analysis = await self.analytics_agent.analyze_channel_performance(days_back=90)
+
+            summary = analysis.get('summary', {})
+            insights = analysis.get('insights', [])
+
+            # Extract style information from insights
+            for insight in insights:
+                if insight.get('insight_type') == 'topic':
+                    finding = insight.get('finding', '')
+                    if 'Winning topics:' in finding:
+                        topics_str = finding.replace('Winning topics:', '').strip()
+                        top_topics = [t.strip() for t in topics_str.split(',')][:5]
+
+            avg_duration = summary.get('avg_duration_seconds', 300)
+            style_notes = f"Analyzed from {summary.get('total_videos', 0)} videos"
+
+            print(f"   ✅ Analytics complete")
+
+        except Exception as e:
+            print(f"   ⚠️  Could not run analytics: {e}")
+            print(f"   ℹ️  Creating basic profile without analytics")
+            # Continue with basic profile - analytics is optional
 
         # Determine tone from channel description and title patterns
         description = channel_data.get('description', '').lower()
@@ -348,6 +411,17 @@ class YouTubeChannelIntegration:
         elif any(word in description for word in ['professional', 'business', 'industry']):
             tone = "professional"
 
+        # Try to infer niche from description
+        if description:
+            if any(word in description for word in ['tech', 'technology', 'coding', 'programming']):
+                niche = "technology"
+            elif any(word in description for word in ['gaming', 'games', 'gamer']):
+                niche = "gaming"
+            elif any(word in description for word in ['cooking', 'recipe', 'food']):
+                niche = "cooking"
+            elif any(word in description for word in ['fitness', 'workout', 'health']):
+                niche = "fitness"
+
         # Create profile
         profile = ChannelProfile(
             channel_id=channel_id,
@@ -356,11 +430,11 @@ class YouTubeChannelIntegration:
             video_count=channel_data.get('video_count', 0),
             niche=niche,
             tone=tone,
-            avg_duration=summary.get('avg_duration_seconds', 300),
+            avg_duration=avg_duration,
             target_audience="general",
             upload_frequency="regular",
             top_topics=top_topics if top_topics else ["general content"],
-            style_notes=f"Analyzed from {summary.get('total_videos', 0)} videos"
+            style_notes=style_notes
         )
 
         return profile
@@ -459,19 +533,6 @@ class YouTubeChannelIntegration:
 
         return []
 
-    def _get_mock_channel_data(self, channel_id: str) -> Dict[str, Any]:
-        """Mock channel data for testing"""
-        return {
-            "id": channel_id,
-            "title": "Test Channel",
-            "description": "This is a test channel for development",
-            "subscriber_count": 10000,
-            "video_count": 50,
-            "view_count": 500000,
-            "thumbnail": "",
-            "country": "US",
-            "custom_url": "@testchannel"
-        }
 
 
 # Convenience function
