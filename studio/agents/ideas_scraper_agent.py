@@ -305,9 +305,10 @@ Return JSON:
             except Exception as e:
                 print(f"   ⚠️  Serper API error: {e}")
 
-        # Fallback: Generate trending topics based on niche
+        # No fallback - require real data
         if len(trending) == 0:
-            trending = self._generate_fallback_trending(niche)
+            print(f"   ⚠️  No trending topics found. Set SERPER_API_KEY for real trend discovery.")
+            print(f"   Get API key: https://serper.dev/")
 
         return trending
 

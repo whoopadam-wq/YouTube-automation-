@@ -379,11 +379,27 @@ async function integrateChannel() {
         const data = await response.json();
 
         if (data.success) {
-            alert(`✅ Connected to ${data.channel.channel_name}!`);
+            alert(`✅ Connected to ${data.channel.channel_name}!\n\n` +
+                  `📺 ${data.channel.subscriber_count.toLocaleString()} subscribers\n` +
+                  `🎥 ${data.channel.video_count} videos\n` +
+                  `🎯 ${data.channel.niche}`);
             loadChannelStatus();
             loadIdeas();
         } else {
-            alert('❌ Failed to integrate channel: ' + data.error);
+            // Show detailed error with setup instructions
+            let errorMsg = '❌ Failed to connect channel\n\n';
+            errorMsg += data.error || 'Unknown error';
+
+            if (data.error && data.error.includes('YOUTUBE_DATA_API_KEY')) {
+                errorMsg += '\n\n📚 Setup Guide:\n';
+                errorMsg += '1. Get free API key: console.cloud.google.com/apis/credentials\n';
+                errorMsg += '2. Enable YouTube Data API v3\n';
+                errorMsg += '3. Add to Render: Environment > YOUTUBE_DATA_API_KEY\n';
+                errorMsg += '4. Redeploy\n\n';
+                errorMsg += 'Full guide: Check API_SETUP_GUIDE.md in the repo';
+            }
+
+            alert(errorMsg);
         }
     } catch (error) {
         alert('❌ Error: ' + error.message);

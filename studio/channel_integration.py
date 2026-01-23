@@ -204,8 +204,16 @@ class YouTubeChannelIntegration:
     async def _fetch_channel_info(self, channel_id: str) -> Dict[str, Any]:
         """Fetch channel information from YouTube Data API"""
         if not self.youtube_api_key:
-            print(f"   ⚠️  YouTube API key not set - using mock data")
-            return self._get_mock_channel_data(channel_id)
+            raise ValueError(
+                "YOUTUBE_DATA_API_KEY is required for channel integration.\n\n"
+                "Get your free API key:\n"
+                "1. Go to https://console.cloud.google.com/apis/credentials\n"
+                "2. Create a new project (or select existing)\n"
+                "3. Enable 'YouTube Data API v3'\n"
+                "4. Create credentials > API key\n"
+                "5. Add to Render: Environment > YOUTUBE_DATA_API_KEY\n\n"
+                "Without this key, the system cannot access real YouTube data."
+            )
 
         try:
             url = f"https://www.googleapis.com/youtube/v3/channels"

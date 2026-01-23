@@ -26,6 +26,15 @@ post_manager = PostManager()
 if not os.environ.get('KIEAI_API_KEY'):
     os.environ['KIEAI_API_KEY'] = '74ba78915402a077bb93b3cf140eb904'
 
+# YouTube Data API key - REQUIRED for channel integration
+# Get your free API key: https://console.cloud.google.com/apis/credentials
+# Enable YouTube Data API v3 in your Google Cloud project
+if not os.environ.get('YOUTUBE_DATA_API_KEY'):
+    print("⚠️  WARNING: YOUTUBE_DATA_API_KEY not set!")
+    print("   Channel integration will not work without it.")
+    print("   Get API key: https://console.cloud.google.com/apis/credentials")
+    print("   Set it in Render dashboard: Environment > YOUTUBE_DATA_API_KEY")
+
 # Enable mock mode for development (set to 'false' for real generation)
 os.environ['STUDIO_MOCK_GENERATION'] = 'true'
 os.environ['STUDIO_MOCK_POSTING'] = 'true'
