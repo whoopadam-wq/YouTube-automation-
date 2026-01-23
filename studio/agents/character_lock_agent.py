@@ -18,8 +18,10 @@ class CharacterLockAgent:
     def __init__(self):
         api_key = os.environ.get('ANTHROPIC_API_KEY')
         if not api_key:
-            raise ValueError("ANTHROPIC_API_KEY not set")
-        self.client = Anthropic(api_key=api_key)
+            print("⚠️  ANTHROPIC_API_KEY not set - Character Lock Agent will skip")
+            self.client = None
+        else:
+            self.client = Anthropic(api_key=api_key)
         self.model = "claude-3-5-sonnet-20241022"
 
     async def lock_characters(self, job: ProductionJob, clips: List[SceneClip]) -> ProductionJob:
@@ -35,6 +37,12 @@ class CharacterLockAgent:
             Updated clips with character assignments
         """
         print(f"🎭 Character Lock Agent: Analyzing characters...")
+
+        # Skip if no API key
+        if not self.client:
+            print(f"   ⚠️  Skipping character analysis (add ANTHROPIC_API_KEY for character locking)")
+            job.global_characters = []
+            return job
 
         # Build combined scene descriptions
         scene_descriptions = []

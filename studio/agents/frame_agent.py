@@ -18,9 +18,7 @@ class FrameAgent:
 
     def __init__(self):
         api_key = os.environ.get('ANTHROPIC_API_KEY')
-        if not api_key:
-            raise ValueError("ANTHROPIC_API_KEY not set")
-        self.client = Anthropic(api_key=api_key)
+        self.client = Anthropic(api_key=api_key) if api_key else None
         self.model = "claude-3-5-sonnet-20241022"
 
     async def generate_frame_specs(self, job: ProductionJob, clips: List[SceneClip]) -> List[SceneClip]:
@@ -35,6 +33,10 @@ class FrameAgent:
             Updated clips with frame_spec populated
         """
         print(f"🎞️  Frame Agent: Generating frame specs for {len(clips)} scenes...")
+
+        if not self.client:
+            print(f"   ⚠️  Skipping frame specs (add ANTHROPIC_API_KEY)")
+            return clips
 
         for i, clip in enumerate(clips):
             # Determine transition from previous scene

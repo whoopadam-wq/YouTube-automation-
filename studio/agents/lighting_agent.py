@@ -17,9 +17,7 @@ class LightingAgent:
 
     def __init__(self):
         api_key = os.environ.get('ANTHROPIC_API_KEY')
-        if not api_key:
-            raise ValueError("ANTHROPIC_API_KEY not set")
-        self.client = Anthropic(api_key=api_key)
+        self.client = Anthropic(api_key=api_key) if api_key else None
         self.model = "claude-3-5-sonnet-20241022"
 
     async def design_lighting(self, job: ProductionJob, clips: List[SceneClip]) -> List[SceneClip]:
@@ -34,6 +32,10 @@ class LightingAgent:
             Updated clips with lighting populated
         """
         print(f"💡 Lighting Agent: Designing lighting for {len(clips)} scenes...")
+
+        if not self.client:
+            print(f"   ⚠️  Skipping lighting design (add ANTHROPIC_API_KEY)")
+            return clips
 
         for clip in clips:
             # Build scene context
