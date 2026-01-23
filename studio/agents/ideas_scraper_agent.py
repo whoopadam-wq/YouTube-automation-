@@ -127,7 +127,10 @@ class IdeasScraperAgent:
 
         # Step 5: Combine and filter duplicates
         all_raw_topics = trending_topics + evergreen_topics
+        print(f"   📋 Total raw topics: {len(all_raw_topics)} (trending: {len(trending_topics)}, evergreen: {len(evergreen_topics)})")
+
         filtered_topics = self._filter_duplicates(all_raw_topics, produced_topics)
+        print(f"   🔍 After filtering duplicates: {len(filtered_topics)} topics remaining")
 
         # Step 6: Deep analysis on each topic
         print(f"   🧠 Analyzing {len(filtered_topics)} potential ideas...")
@@ -266,50 +269,67 @@ Return JSON:
         """
         trending = []
 
+        print(f"   🔍 _research_trending_topics called with niche: '{niche}'")
+
         # Use Serper API to search trending content
-        if self.serper_api_key:
-            try:
-                # Search for recent viral content
-                queries = [
-                    f"{niche} viral 2024",
-                    f"{niche} trending now",
-                    f"best {niche} videos this month",
-                    f"{niche} breaking news"
-                ]
+        if not self.serper_api_key:
+            print(f"   ❌ SERPER_API_KEY is not set!")
+            return trending
 
-                for query in queries:
-                    headers = {
-                        "X-API-KEY": self.serper_api_key,
-                        "Content-Type": "application/json"
-                    }
-                    payload = {"q": query, "num": 10}
+        print(f"   ✅ SERPER_API_KEY is configured")
 
-                    response = requests.post(
-                        "https://google.serper.dev/search",
-                        headers=headers,
-                        json=payload,
-                        timeout=10
-                    )
+        try:
+            # Search for recent viral content
+            queries = [
+                f"{niche} viral 2026",
+                f"{niche} trending now",
+                f"best {niche} videos this month",
+                f"{niche} breaking news"
+            ]
 
-                    if response.status_code == 200:
-                        results = response.json()
-                        for result in results.get('organic', [])[:5]:
-                            trending.append({
-                                "topic": result.get('title', ''),
-                                "snippet": result.get('snippet', ''),
-                                "source_url": result.get('link', ''),
-                                "type": "trending",
-                                "discovered_at": datetime.now().isoformat()
-                            })
+            for query in queries:
+                print(f"   📡 Calling Serper API with query: '{query}'")
 
-            except Exception as e:
-                print(f"   ⚠️  Serper API error: {e}")
+                headers = {
+                    "X-API-KEY": self.serper_api_key,
+                    "Content-Type": "application/json"
+                }
+                payload = {"q": query, "num": 10}
 
-        # No fallback - require real data
-        if len(trending) == 0:
-            print(f"   ⚠️  No trending topics found. Set SERPER_API_KEY for real trend discovery.")
-            print(f"   Get API key: https://serper.dev/")
+                response = requests.post(
+                    "https://google.serper.dev/search",
+                    headers=headers,
+                    json=payload,
+                    timeout=10
+                )
 
+                print(f"   📊 Serper API response status: {response.status_code}")
+
+                if response.status_code == 200:
+                    results = response.json()
+                    organic_results = results.get('organic', [])
+                    print(f"   ✅ Got {len(organic_results)} organic results")
+
+                    for result in organic_results[:5]:
+                        topic_title = result.get('title', '')
+                        print(f"      - Found topic: {topic_title}")
+                        trending.append({
+                            "topic": topic_title,
+                            "snippet": result.get('snippet', ''),
+                            "source_url": result.get('link', ''),
+                            "type": "trending",
+                            "discovered_at": datetime.now().isoformat()
+                        })
+                else:
+                    print(f"   ❌ Serper API error: Status {response.status_code}")
+                    print(f"   Response: {response.text}")
+
+        except Exception as e:
+            print(f"   ❌ Exception in Serper API call: {e}")
+            import traceback
+            print(traceback.format_exc())
+
+        print(f"   📊 Total trending topics found: {len(trending)}")
         return trending
 
     async def _research_evergreen_topics(self, niche: str) -> List[Dict]:
