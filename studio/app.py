@@ -385,6 +385,38 @@ channel_integration = YouTubeChannelIntegration()
 cost_estimator = CostEstimator()
 
 
+@app.route('/api/system/status', methods=['GET'])
+def system_status():
+    """Check system configuration and API key status"""
+    status = {
+        "api_keys": {
+            "YOUTUBE_DATA_API_KEY": "✅ Configured" if os.environ.get('YOUTUBE_DATA_API_KEY') else "❌ Not Set",
+            "SERPER_API_KEY": "✅ Configured" if os.environ.get('SERPER_API_KEY') else "❌ Not Set",
+            "ANTHROPIC_API_KEY": "✅ Configured" if os.environ.get('ANTHROPIC_API_KEY') else "❌ Not Set",
+            "KIE_AI_API_KEY": "✅ Configured" if os.environ.get('KIE_AI_API_KEY') else "❌ Not Set"
+        },
+        "channel_connected": False,
+        "channel_info": None
+    }
+
+    # Check if channel is connected
+    try:
+        channel = channel_integration.load_active_channel()
+        if channel:
+            status["channel_connected"] = True
+            status["channel_info"] = {
+                "name": channel.channel_name,
+                "channel_id": channel.channel_id,
+                "niche": channel.niche,
+                "subscribers": channel.subscriber_count,
+                "videos": channel.video_count
+            }
+    except:
+        pass
+
+    return jsonify(status)
+
+
 @app.route('/api/channel/integrate', methods=['POST'])
 def integrate_channel():
     """Integrate a YouTube channel"""
@@ -475,6 +507,20 @@ def discover_ideas():
         if not channel:
             return jsonify({"success": False, "error": "No channel connected"}), 400
 
+        # Check if required API keys are set
+        if not os.environ.get('SERPER_API_KEY'):
+            return jsonify({
+                "success": False,
+                "error": "SERPER_API_KEY is not set in environment variables.\n\n"
+                        "This API key is REQUIRED for discovering trending topics.\n\n"
+                        "Get your free API key:\n"
+                        "1. Go to https://serper.dev/\n"
+                        "2. Sign up (free tier: 2,500 searches)\n"
+                        "3. Copy your API key\n"
+                        "4. Add to Render: Environment > SERPER_API_KEY\n"
+                        "5. Redeploy the service"
+            }), 400
+
         agent = IdeasScraperAgent(channel_id=channel.channel_id)
 
         loop = asyncio.new_event_loop()
@@ -489,11 +535,25 @@ def discover_ideas():
 
         loop.close()
 
+        if len(ideas) == 0:
+            return jsonify({
+                "success": False,
+                "error": f"No ideas discovered for niche: '{channel.niche}'.\n\n"
+                        f"This could mean:\n"
+                        f"1. The Serper API is not working\n"
+                        f"2. The niche '{channel.niche}' is too generic\n"
+                        f"3. API rate limits exceeded\n\n"
+                        f"Check Render logs for detailed error messages."
+            }), 500
+
         return jsonify({
             "success": True,
             "ideas_count": len(ideas)
         })
     except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"ERROR in discover_ideas: {error_details}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 
@@ -505,6 +565,24 @@ def run_analytics():
 
         if not channel:
             return jsonify({"success": False, "error": "No channel connected"}), 400
+
+        # Check if required API keys are set
+        if not os.environ.get('YOUTUBE_DATA_API_KEY'):
+            return jsonify({
+                "success": False,
+                "error": "YOUTUBE_DATA_API_KEY is not set in environment variables.\n\n"
+                        "This API key is REQUIRED for analytics.\n"
+                        "Add it to Render: Environment > YOUTUBE_DATA_API_KEY"
+            }), 400
+
+        if not os.environ.get('ANTHROPIC_API_KEY'):
+            return jsonify({
+                "success": False,
+                "error": "ANTHROPIC_API_KEY is not set in environment variables.\n\n"
+                        "This API key is REQUIRED for AI analysis.\n"
+                        "Get your API key from: https://console.anthropic.com/\n"
+                        "Add it to Render: Environment > ANTHROPIC_API_KEY"
+            }), 400
 
         agent = AnalyticsAgent(channel_id=channel.channel_id)
 
@@ -519,11 +597,25 @@ def run_analytics():
 
         insights_count = len(analysis.get('insights', []))
 
+        if insights_count == 0:
+            return jsonify({
+                "success": False,
+                "error": "No insights generated.\n\n"
+                        "This could mean:\n"
+                        "1. Channel has no videos to analyze\n"
+                        "2. YouTube API cannot access the videos\n"
+                        "3. Video data is too recent (< 24 hours old)\n\n"
+                        "Check Render logs for detailed error messages."
+            }), 500
+
         return jsonify({
             "success": True,
             "insights_count": insights_count
         })
     except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"ERROR in run_analytics: {error_details}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 
