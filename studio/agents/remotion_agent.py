@@ -68,7 +68,7 @@ class RemotionAgent:
             self.client = None
         else:
             self.client = Anthropic(api_key=api_key)
-        self.model = "claude-3-5-sonnet-20240620"
+        self.model = "claude-sonnet-4-5"
 
         # Remotion project setup
         self.remotion_version = "4.0"

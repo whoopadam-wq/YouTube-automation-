@@ -73,7 +73,7 @@ class AutonomousLearningSystem:
             self.client = None
         else:
             self.client = Anthropic(api_key=api_key)
-        self.model = "claude-3-5-sonnet-20240620"
+        self.model = "claude-sonnet-4-5"
 
         # Channel context
         self.channel_id = channel_id

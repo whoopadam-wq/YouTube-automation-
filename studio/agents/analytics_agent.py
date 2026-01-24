@@ -61,7 +61,7 @@ class AnalyticsAgent:
             self.client = None
         else:
             self.client = Anthropic(api_key=api_key)
-        self.model = "claude-3-5-sonnet-20240620"
+        self.model = "claude-sonnet-4-5"
 
         # YouTube APIs
         self.youtube_api_key = os.environ.get('YOUTUBE_DATA_API_KEY')

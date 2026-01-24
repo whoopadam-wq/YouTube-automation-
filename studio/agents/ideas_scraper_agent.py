@@ -70,7 +70,7 @@ class IdeasScraperAgent:
             except Exception as e:
                 print(f"❌ Failed to initialize Anthropic client: {e}")
                 self.client = None
-        self.model = "claude-3-5-sonnet-20241022"
+        self.model = "claude-sonnet-4-5"
 
         # Research APIs
         self.serper_api_key = os.environ.get('SERPER_API_KEY')
