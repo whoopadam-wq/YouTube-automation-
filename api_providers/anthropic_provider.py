@@ -15,7 +15,7 @@ class AnthropicProvider(BaseProvider):
         """Initialize Anthropic provider."""
         super().__init__(api_key, config)
         self.client = anthropic.Anthropic(api_key=api_key)
-        self.model = config.get('models', {}).get('anthropic', 'claude-sonnet-4-5-20250929')
+        self.model = config.get('models', {}).get('anthropic', 'claude-sonnet-4-5')
 
     async def generate_text(
         self,

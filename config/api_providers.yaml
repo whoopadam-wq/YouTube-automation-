@@ -8,7 +8,7 @@ providers:
     primary: "anthropic"
     fallback: "openai"
     models:
-      anthropic: "claude-sonnet-4-5-20250929"
+      anthropic: "claude-sonnet-4-5"
       openai: "gpt-4-turbo-preview"
 
   # Character Design & Description
@@ -16,7 +16,7 @@ providers:
     primary: "anthropic"
     fallback: "openai"
     models:
-      anthropic: "claude-sonnet-4-5-20250929"
+      anthropic: "claude-sonnet-4-5"
       openai: "gpt-4-turbo-preview"
 
   # Image Generation
