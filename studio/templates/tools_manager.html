@@ -290,10 +290,14 @@
                 <div class="filter-tab active" onclick="filterTools('all')">All</div>
                 <div class="filter-tab" onclick="filterTools('image')">Images</div>
                 <div class="filter-tab" onclick="filterTools('video')">Video</div>
-                <div class="filter-tab" onclick="filterTools('audio')">Audio</div>
             </div>
             <div style="background: rgba(102, 126, 234, 0.1); padding: 12px; border-radius: 6px; margin-bottom: 15px; font-size: 12px; border-left: 3px solid #667eea;">
-                <strong>Text AI Locked:</strong> All text generation uses Claude API + Serper API (not configurable)
+                <strong>🔒 Locked APIs:</strong><br>
+                • Claude API - all text agents<br>
+                • Serper API - web search<br>
+                • ElevenLabs API - audio generation<br>
+                • Remotion - video assembly<br>
+                • YouTube API - analytics
             </div>
 
             <div id="tools-container">
@@ -306,79 +310,60 @@
             <h3 style="margin-bottom: 20px; color: #667eea;">Pre-Production Agents</h3>
 
             <!-- Ideas Scraper Agent -->
-            <div class="agent-card" data-agent="ideas-scraper" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)">
+            <div class="agent-card" data-agent="ideas-scraper">
                 <div class="agent-header">
                     <div class="agent-name">🔍 Ideas Scraper Agent</div>
-                    <div class="agent-status inactive">
-                        <span class="connection-indicator disconnected"></span>New
+                    <div class="agent-status active">
+                        <span class="connection-indicator connected"></span>Claude + Serper
                     </div>
                 </div>
-                <p style="opacity: 0.7; font-size: 13px; margin-bottom: 15px;">Discovers trending topics automatically</p>
-                <div class="agent-tools empty" data-agent="ideas-scraper"></div>
+                <p style="opacity: 0.7; font-size: 13px;">Uses Claude API + Serper API to discover trending topics</p>
             </div>
 
             <!-- Analytics Agent -->
-            <div class="agent-card" data-agent="analytics" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)">
+            <div class="agent-card" data-agent="analytics">
                 <div class="agent-header">
                     <div class="agent-name">📊 Analytics Agent</div>
-                    <div class="agent-status inactive">
-                        <span class="connection-indicator disconnected"></span>New
+                    <div class="agent-status active">
+                        <span class="connection-indicator connected"></span>YouTube API
                     </div>
                 </div>
-                <p style="opacity: 0.7; font-size: 13px; margin-bottom: 15px;">Studies channel performance and learns</p>
-                <div class="agent-tools empty" data-agent="analytics"></div>
+                <p style="opacity: 0.7; font-size: 13px;">Uses YouTube Data API to analyze channel performance</p>
             </div>
 
             <h3 style="margin-bottom: 20px; margin-top: 30px; color: #667eea;">Production Agents</h3>
 
             <!-- Script Agent -->
-            <div class="agent-card" data-agent="script" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)">
+            <div class="agent-card" data-agent="script">
                 <div class="agent-header">
                     <div class="agent-name">📝 Script Agent</div>
                     <div class="agent-status active">
-                        <span class="connection-indicator connected"></span>Active
+                        <span class="connection-indicator connected"></span>Claude API
                     </div>
                 </div>
-                <p style="opacity: 0.7; font-size: 13px; margin-bottom: 15px;">Generates scripts with viral optimization</p>
-                <div class="agent-tools" data-agent="script">
-                    <!-- Connected tools will appear here -->
-                </div>
-            </div>
-
-            <!-- Character Lock Agent -->
-            <div class="agent-card" data-agent="character" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)">
-                <div class="agent-header">
-                    <div class="agent-name">🎭 Character Lock Agent</div>
-                    <div class="agent-status inactive">
-                        <span class="connection-indicator disconnected"></span>No Tools
-                    </div>
-                </div>
-                <p style="opacity: 0.7; font-size: 13px; margin-bottom: 15px;">Ensures character consistency</p>
-                <div class="agent-tools empty" data-agent="character"></div>
+                <p style="opacity: 0.7; font-size: 13px;">Uses Claude API to generate viral-optimized scripts</p>
             </div>
 
             <!-- Lighting Agent -->
-            <div class="agent-card" data-agent="lighting" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)">
+            <div class="agent-card" data-agent="lighting">
                 <div class="agent-header">
                     <div class="agent-name">💡 Lighting Agent</div>
-                    <div class="agent-status inactive">
-                        <span class="connection-indicator disconnected"></span>No Tools
+                    <div class="agent-status active">
+                        <span class="connection-indicator connected"></span>Claude API
                     </div>
                 </div>
-                <p style="opacity: 0.7; font-size: 13px; margin-bottom: 15px;">Designs lighting for mood</p>
-                <div class="agent-tools empty" data-agent="lighting"></div>
+                <p style="opacity: 0.7; font-size: 13px;">Uses Claude API to design lighting for mood</p>
             </div>
 
             <!-- Composition Agent -->
-            <div class="agent-card" data-agent="composition" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)">
+            <div class="agent-card" data-agent="composition">
                 <div class="agent-header">
                     <div class="agent-name">🎬 Composition Agent</div>
-                    <div class="agent-status inactive">
-                        <span class="connection-indicator disconnected"></span>No Tools
+                    <div class="agent-status active">
+                        <span class="connection-indicator connected"></span>Claude API
                     </div>
                 </div>
-                <p style="opacity: 0.7; font-size: 13px; margin-bottom: 15px;">Plans camera angles and framing</p>
-                <div class="agent-tools empty" data-agent="composition"></div>
+                <p style="opacity: 0.7; font-size: 13px;">Uses Claude API to plan camera angles and framing</p>
             </div>
 
             <!-- Frame Agent -->
@@ -389,7 +374,7 @@
                         <span class="connection-indicator connected"></span>Active
                     </div>
                 </div>
-                <p style="opacity: 0.7; font-size: 13px; margin-bottom: 15px;">Creates start/end frame specifications</p>
+                <p style="opacity: 0.7; font-size: 13px; margin-bottom: 15px;">Claude generates prompts → Image model creates frames</p>
                 <div class="agent-tools" data-agent="frame">
                     <div class="connected-tool" data-tool="nano-banana-pro">
                         <span class="tool-icon">🎨</span>
@@ -407,17 +392,12 @@
                         <span class="connection-indicator connected"></span>Active
                     </div>
                 </div>
-                <p style="opacity: 0.7; font-size: 13px; margin-bottom: 15px;">Generates video clips</p>
+                <p style="opacity: 0.7; font-size: 13px; margin-bottom: 15px;">Generates video clips from frames + ElevenLabs narration</p>
                 <div class="agent-tools" data-agent="video">
                     <div class="connected-tool" data-tool="veo-3">
                         <span class="tool-icon">🎬</span>
                         Veo 3
                         <span class="remove-tool" onclick="removeTool(event, 'video', 'veo-3')">×</span>
-                    </div>
-                    <div class="connected-tool" data-tool="elevenlabs">
-                        <span class="tool-icon">🎙️</span>
-                        ElevenLabs
-                        <span class="remove-tool" onclick="removeTool(event, 'video', 'elevenlabs')">×</span>
                     </div>
                 </div>
             </div>
@@ -425,57 +405,36 @@
             <h3 style="margin-bottom: 20px; margin-top: 30px; color: #667eea;">Post-Production Agents</h3>
 
             <!-- Sound Engineer Agent -->
-            <div class="agent-card" data-agent="sound-engineer" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)">
+            <div class="agent-card" data-agent="sound-engineer">
                 <div class="agent-header">
                     <div class="agent-name">🎵 Sound Engineer Agent</div>
-                    <div class="agent-status inactive">
-                        <span class="connection-indicator disconnected"></span>New
+                    <div class="agent-status active">
+                        <span class="connection-indicator connected"></span>Claude + ElevenLabs
                     </div>
                 </div>
-                <p style="opacity: 0.7; font-size: 13px; margin-bottom: 15px;">Adds music, SFX, professional audio mix</p>
-                <div class="agent-tools empty" data-agent="sound-engineer"></div>
-            </div>
-
-            <!-- Remotion Motion Graphics Agent -->
-            <div class="agent-card" data-agent="remotion" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)">
-                <div class="agent-header">
-                    <div class="agent-name">⚛️ Remotion Agent</div>
-                    <div class="agent-status inactive">
-                        <span class="connection-indicator disconnected"></span>New
-                    </div>
-                </div>
-                <p style="opacity: 0.7; font-size: 13px; margin-bottom: 15px;">Creates Vox-style motion graphics</p>
-                <div class="agent-tools empty" data-agent="remotion"></div>
+                <p style="opacity: 0.7; font-size: 13px;">Uses Claude to analyze script/lighting/composition, then ElevenLabs for music & SFX</p>
             </div>
 
             <!-- Thumbnail Agent -->
-            <div class="agent-card" data-agent="thumbnail" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)">
+            <div class="agent-card" data-agent="thumbnail">
                 <div class="agent-header">
                     <div class="agent-name">🖼️ Thumbnail Agent</div>
-                    <div class="agent-status inactive">
-                        <span class="connection-indicator disconnected"></span>New
+                    <div class="agent-status active">
+                        <span class="connection-indicator connected"></span>Claude API
                     </div>
                 </div>
-                <p style="opacity: 0.7; font-size: 13px; margin-bottom: 15px;">Generates CTR-optimized thumbnails</p>
-                <div class="agent-tools empty" data-agent="thumbnail"></div>
+                <p style="opacity: 0.7; font-size: 13px;">Uses Claude to analyze top performers → Image model generates CTR-optimized thumbnail</p>
             </div>
 
             <!-- Assembly Agent -->
-            <div class="agent-card" data-agent="assembly" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)">
+            <div class="agent-card" data-agent="assembly">
                 <div class="agent-header">
                     <div class="agent-name">🎬 Assembly Agent</div>
                     <div class="agent-status active">
-                        <span class="connection-indicator connected"></span>Active
+                        <span class="connection-indicator connected"></span>Remotion
                     </div>
                 </div>
-                <p style="opacity: 0.7; font-size: 13px; margin-bottom: 15px;">Assembles final video with Remotion</p>
-                <div class="agent-tools" data-agent="assembly">
-                    <div class="connected-tool" data-tool="remotion">
-                        <span class="tool-icon">⚛️</span>
-                        Remotion
-                        <span class="remove-tool" onclick="removeTool(event, 'assembly', 'remotion')">×</span>
-                    </div>
-                </div>
+                <p style="opacity: 0.7; font-size: 13px;">Assembles final video with Remotion (React-based composition)</p>
             </div>
         </div>
     </div>
@@ -551,34 +510,6 @@ const aiTools = [
         provider: 'Pika',
         status: 'available'
     },
-    // Audio/Voice
-    {
-        id: 'elevenlabs',
-        name: 'ElevenLabs',
-        icon: '🎙️',
-        category: 'audio',
-        description: 'Natural voice synthesis',
-        provider: 'ElevenLabs',
-        status: 'active'
-    },
-    {
-        id: 'play-ht',
-        name: 'Play.ht',
-        icon: '🔊',
-        category: 'audio',
-        description: 'Advanced text-to-speech',
-        provider: 'Play.ht',
-        status: 'available'
-    },
-    {
-        id: 'musicgen',
-        name: 'MusicGen',
-        icon: '🎵',
-        category: 'audio',
-        description: 'AI music generation',
-        provider: 'Meta',
-        status: 'available'
-    },
     // Utility Tools
     {
         id: 'real-esrgan',
@@ -597,15 +528,6 @@ const aiTools = [
         description: 'Speech to text transcription',
         provider: 'OpenAI',
         status: 'available'
-    },
-    {
-        id: 'remotion',
-        name: 'Remotion',
-        icon: '⚛️',
-        category: 'video',
-        description: 'React-based video composition',
-        provider: 'Remotion',
-        status: 'active'
     }
 ];
 

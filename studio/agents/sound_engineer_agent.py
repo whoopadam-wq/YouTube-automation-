@@ -1,13 +1,13 @@
 """
 Sound Engineer Agent - Intelligent audio design and mixing
-Adds sound effects, background music, and audio enhancement
+Uses Claude to analyze script/lighting/composition
+Uses ElevenLabs API for music and sound effects generation
 """
 import os
 import json
 from typing import List, Dict, Any, Optional
 from anthropic import Anthropic
 from studio.schemas import SceneClip, ProductionJob
-from studio.providers.kieai_provider import KieAIProvider
 
 
 class AudioLayer:
@@ -48,37 +48,30 @@ class AudioLayer:
 class SoundEngineerAgent:
     """
     Professional sound engineer that:
-    - Analyzes script emotional beats for music selection
-    - Identifies moments needing sound effects (SFX)
-    - Generates background music with MusicGen
-    - Sources professional SFX from libraries
-    - Balances audio levels for clarity
-    - Creates smooth transitions and fades
-    - Enhances overall audio quality
-    - Expert in audio production principles
+    1. Uses Claude to analyze script, lighting, composition for audio needs
+    2. Uses ElevenLabs API to generate:
+       - Background music
+       - Sound effects (SFX)
+       - Ambient atmosphere
+    3. Balances audio levels for clarity
+    4. Creates smooth transitions and fades
+    5. Expert in audio production principles
     """
 
     def __init__(self):
-        # LLM for audio direction analysis
+        # Claude for audio direction analysis
         api_key = os.environ.get('ANTHROPIC_API_KEY')
         if not api_key:
-            print("⚠️  ANTHROPIC_API_KEY not set - Sound Engineer will use basic mode")
-            self.client = None
-        else:
-            self.client = Anthropic(api_key=api_key)
+            raise ValueError("ANTHROPIC_API_KEY required for Sound Engineer Agent")
+        self.client = Anthropic(api_key=api_key)
         self.model = "claude-sonnet-4-5"
 
-        # Kie.ai for audio generation
-        kieai_api_key = os.environ.get('KIEAI_API_KEY')
+        # ElevenLabs for audio generation
+        self.elevenlabs_api_key = os.environ.get('ELEVENLABS_API_KEY')
+        if not self.elevenlabs_api_key:
+            print("⚠️  ELEVENLABS_API_KEY not set - Sound Engineer will use mock audio")
+
         self.use_mock = os.environ.get('STUDIO_MOCK_GENERATION', 'false').lower() == 'true'
-
-        if kieai_api_key and not self.use_mock:
-            self.kieai_provider = KieAIProvider(api_key=kieai_api_key)
-        else:
-            self.kieai_provider = None
-
-        # Sound effects library (URL-based for now)
-        self.sfx_library = self._load_sfx_library()
 
     async def design_audio(
         self,
@@ -216,7 +209,7 @@ Return JSON:
         audio_direction: Dict[str, Any]
     ) -> AudioLayer:
         """
-        Generate background music using MusicGen or similar
+        Generate background music using ElevenLabs Sound Generation API
         """
         music_mood = audio_direction.get('music_mood', 'cinematic')
         genre = audio_direction.get('genre', 'ambient')
@@ -225,34 +218,41 @@ Return JSON:
         print(f"   🎵 Generating {genre} music ({music_mood} mood, {duration}s)...")
 
         # Check if we should use real generation or mock
-        if self.kieai_provider and not self.use_mock:
+        if self.elevenlabs_api_key and not self.use_mock:
             try:
-                # Use MusicGen via kie.ai
-                result = self.kieai_provider.call_any_model(
-                    model_name="musicgen",
-                    endpoint="/audio/generate-music",
-                    payload={
-                        "duration": min(duration, 30),  # MusicGen typically max 30s
-                        "genre": genre,
-                        "mood": music_mood,
-                        "tempo": "medium"
+                # Use ElevenLabs Sound Generation API
+                import requests
+
+                response = requests.post(
+                    "https://api.elevenlabs.io/v1/sound-generation",
+                    headers={
+                        "xi-api-key": self.elevenlabs_api_key,
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "text": f"{music_mood} {genre} background music, cinematic atmosphere",
+                        "duration_seconds": min(duration, 22),  # ElevenLabs max 22s
+                        "prompt_influence": 0.3
                     }
                 )
 
-                audio_url = result.get("audio_url")
+                if response.status_code == 200:
+                    # Save audio to local file or get URL
+                    audio_url = f"data:audio/mp3;base64,{response.content.decode('utf-8')}"
+                    print(f"   ✅ Background music generated via ElevenLabs")
 
-                print(f"   ✅ Background music generated")
-
-                return AudioLayer(
-                    layer_type="music",
-                    audio_url=audio_url,
-                    start_time=0,
-                    duration=duration,
-                    volume=audio_direction.get('volume_mix', {}).get('music', 0.3),
-                    fade_in=2.0,
-                    fade_out=2.0,
-                    description=f"{genre} background music - {music_mood} mood"
-                )
+                    return AudioLayer(
+                        layer_type="music",
+                        audio_url=audio_url,
+                        start_time=0,
+                        duration=duration,
+                        volume=audio_direction.get('volume_mix', {}).get('music', 0.3),
+                        fade_in=2.0,
+                        fade_out=2.0,
+                        description=f"{genre} background music - {music_mood} mood (ElevenLabs)"
+                    )
+                else:
+                    print(f"   ⚠️  ElevenLabs API error: {response.status_code}")
 
             except Exception as e:
                 print(f"   ⚠️  Music generation failed: {e}, using placeholder")
@@ -275,7 +275,7 @@ Return JSON:
         audio_direction: Dict[str, Any]
     ) -> List[AudioLayer]:
         """
-        Add sound effects at key moments
+        Generate sound effects using ElevenLabs Sound Generation API
         """
         sfx_layers = []
         sfx_moments = audio_direction.get('sfx_moments', [])
@@ -289,8 +289,8 @@ Return JSON:
                     timing = sfx.get('timing', 0)
                     reason = sfx.get('reason', '')
 
-                    # Get SFX from library
-                    sfx_url = self._get_sfx_from_library(effect_type)
+                    # Generate SFX using ElevenLabs
+                    sfx_url = await self._generate_sound_effect(effect_type, reason)
 
                     sfx_layers.append(AudioLayer(
                         layer_type="sfx",
@@ -303,7 +303,7 @@ Return JSON:
 
             cumulative_time += clip.duration
 
-        print(f"   ✅ Added {len(sfx_layers)} sound effects")
+        print(f"   ✅ Generated {len(sfx_layers)} sound effects via ElevenLabs")
         return sfx_layers
 
     async def _design_ambient_audio(
@@ -388,65 +388,37 @@ Return JSON:
             }
         }
 
-    def _get_sfx_from_library(self, effect_type: str) -> str:
+    async def _generate_sound_effect(self, effect_type: str, reason: str) -> str:
         """
-        Get sound effect URL from library
+        Generate a sound effect using ElevenLabs API
         """
-        sfx = self.sfx_library.get(effect_type, {})
-        return sfx.get('url', 'https://example.com/sfx/placeholder.mp3')
+        if self.elevenlabs_api_key and not self.use_mock:
+            try:
+                import requests
 
-    def _load_sfx_library(self) -> Dict[str, Dict]:
-        """
-        Load sound effects library
-        In production, this would be a real SFX library API
-        """
-        return {
-            "whoosh": {
-                "url": "https://example.com/sfx/whoosh.mp3",
-                "duration": 0.5,
-                "category": "transition"
-            },
-            "impact": {
-                "url": "https://example.com/sfx/impact.mp3",
-                "duration": 0.3,
-                "category": "emphasis"
-            },
-            "pop": {
-                "url": "https://example.com/sfx/pop.mp3",
-                "duration": 0.2,
-                "category": "ui"
-            },
-            "swoosh": {
-                "url": "https://example.com/sfx/swoosh.mp3",
-                "duration": 0.4,
-                "category": "transition"
-            },
-            "rise": {
-                "url": "https://example.com/sfx/rise.mp3",
-                "duration": 1.0,
-                "category": "build"
-            },
-            "hit": {
-                "url": "https://example.com/sfx/hit.mp3",
-                "duration": 0.3,
-                "category": "emphasis"
-            },
-            "glitch": {
-                "url": "https://example.com/sfx/glitch.mp3",
-                "duration": 0.2,
-                "category": "effect"
-            },
-            "ambient_city": {
-                "url": "https://example.com/sfx/ambient_city.mp3",
-                "duration": 30,
-                "category": "ambient"
-            },
-            "ambient_nature": {
-                "url": "https://example.com/sfx/ambient_nature.mp3",
-                "duration": 30,
-                "category": "ambient"
-            }
-        }
+                response = requests.post(
+                    "https://api.elevenlabs.io/v1/sound-generation",
+                    headers={
+                        "xi-api-key": self.elevenlabs_api_key,
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "text": f"{effect_type} sound effect, {reason}",
+                        "duration_seconds": 1.0,
+                        "prompt_influence": 0.5
+                    }
+                )
+
+                if response.status_code == 200:
+                    return f"data:audio/mp3;base64,{response.content.decode('utf-8')}"
+                else:
+                    print(f"   ⚠️  ElevenLabs SFX generation failed: {response.status_code}")
+
+            except Exception as e:
+                print(f"   ⚠️  SFX generation error: {e}")
+
+        # Fallback
+        return f"https://example.com/sfx/{effect_type}.mp3"
 
     def _get_default_audio_direction(self, job: ProductionJob) -> Dict[str, Any]:
         """Fallback audio direction when LLM not available"""
