@@ -653,6 +653,7 @@ class AutonomousPipeline:
                     camera_angle=clip_dict["composition"].get("camera_angle", "eye_level"),
                     camera_movement=clip_dict["composition"].get("camera_movement", "static"),
                     framing_notes=clip_dict["composition"].get("framing_notes", ""),
+                    rule_of_thirds=clip_dict["composition"].get("rule_of_thirds", True),
                     depth_of_field=clip_dict["composition"].get("depth_of_field", "normal")
                 )
 
@@ -708,6 +709,7 @@ class AutonomousPipeline:
                 "camera_angle": clip.composition.camera_angle,
                 "camera_movement": clip.composition.camera_movement,
                 "framing_notes": clip.composition.framing_notes,
+                "rule_of_thirds": clip.composition.rule_of_thirds,
                 "depth_of_field": clip.composition.depth_of_field
             }
 

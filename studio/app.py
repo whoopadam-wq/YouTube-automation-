@@ -846,6 +846,44 @@ def autonomous_retry(video_id):
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@app.route('/api/autonomous/video/<video_id>/inspect/<stage>', methods=['GET'])
+def inspect_stage_output(video_id, stage):
+    """
+    Inspect detailed outputs from a specific pipeline stage
+    This endpoint exposes the 'exoskeleton' - what each stage actually produced
+    """
+    try:
+        state = pipeline_state_manager.load_state(video_id)
+
+        if not state:
+            return jsonify({"error": "Video not found"}), 404
+
+        # Get the specific stage output from stage_statuses
+        stage_output = state.stage_statuses.get(stage)
+
+        if not stage_output:
+            return jsonify({
+                "error": f"Stage '{stage}' not found or not yet executed",
+                "available_stages": list(state.stage_statuses.keys())
+            }), 404
+
+        return jsonify({
+            "video_id": video_id,
+            "stage": stage,
+            "status": stage_output.get("status", "unknown"),
+            "output": stage_output,
+            "current_stage": state.current_stage,
+            "error": stage_output.get("error")
+        })
+
+    except Exception as e:
+        import traceback
+        return jsonify({
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
 # ============================================================================
 # RUN SERVER
 # ============================================================================

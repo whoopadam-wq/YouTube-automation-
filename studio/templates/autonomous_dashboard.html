@@ -190,6 +190,147 @@
         border-radius: 8px;
         margin-top: 15px;
     }
+
+    /* Inspection Modal Styles */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.85);
+        z-index: 9999;
+        overflow-y: auto;
+    }
+
+    .modal-content {
+        background: #1a1a1a;
+        margin: 50px auto;
+        max-width: 1200px;
+        border-radius: 12px;
+        border: 1px solid #2a2a2a;
+        position: relative;
+    }
+
+    .modal-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 20px;
+        border-radius: 12px 12px 0 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-close {
+        background: rgba(255,255,255,0.2);
+        border: none;
+        color: white;
+        font-size: 24px;
+        cursor: pointer;
+        padding: 5px 15px;
+        border-radius: 6px;
+    }
+
+    .modal-body {
+        padding: 0;
+        max-height: 80vh;
+        overflow-y: auto;
+    }
+
+    .stage-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        padding: 20px;
+        background: #0a0a0a;
+        border-bottom: 1px solid #2a2a2a;
+    }
+
+    .stage-tab {
+        background: #2a2a2a;
+        padding: 10px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 13px;
+        transition: all 0.2s;
+        border: 2px solid transparent;
+    }
+
+    .stage-tab:hover {
+        background: #3a3a3a;
+    }
+
+    .stage-tab.active {
+        background: #667eea;
+        border-color: #764ba2;
+    }
+
+    .stage-tab.completed {
+        border-left: 3px solid #10b981;
+    }
+
+    .stage-tab.error {
+        border-left: 3px solid #ef4444;
+    }
+
+    .stage-content {
+        display: none;
+        padding: 20px;
+    }
+
+    .stage-content.active {
+        display: block;
+    }
+
+    .clip-inspector {
+        background: #2a2a2a;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 15px;
+        border-left: 3px solid #667eea;
+    }
+
+    .clip-header {
+        font-weight: 600;
+        margin-bottom: 10px;
+        color: #667eea;
+    }
+
+    .property-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 10px;
+        margin-top: 10px;
+    }
+
+    .property-item {
+        background: #1a1a1a;
+        padding: 10px;
+        border-radius: 6px;
+    }
+
+    .property-label {
+        font-size: 11px;
+        opacity: 0.7;
+        text-transform: uppercase;
+        margin-bottom: 5px;
+    }
+
+    .property-value {
+        font-size: 14px;
+        font-weight: 500;
+    }
+
+    .json-viewer {
+        background: #0a0a0a;
+        padding: 15px;
+        border-radius: 6px;
+        overflow-x: auto;
+        font-family: 'Monaco', 'Courier New', monospace;
+        font-size: 12px;
+        line-height: 1.6;
+    }
 </style>
 {% endblock %}
 
@@ -392,6 +533,21 @@
             <button onclick="createSampleJob()" class="btn btn-secondary">
                 🧪 Create Sample Job (Test)
             </button>
+        </div>
+    </div>
+
+    <!-- Inspection Modal -->
+    <div id="inspection-modal" class="modal-overlay" onclick="closeInspectionModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <div>
+                    <h2 id="modal-video-title" style="margin: 0;">Pipeline Inspector</h2>
+                    <p id="modal-video-id" style="opacity: 0.9; margin: 5px 0 0 0; font-size: 14px;"></p>
+                </div>
+                <button class="modal-close" onclick="closeInspectionModal()">&times;</button>
+            </div>
+            <div class="stage-tabs" id="stage-tabs"></div>
+            <div class="modal-body" id="modal-body"></div>
         </div>
     </div>
 </div>
@@ -853,21 +1009,299 @@ async function viewVideoDetails(videoId) {
         const data = await response.json();
 
         if (data.video_id) {
-            let details = `Video: ${data.title}\n\n`;
-            details += `Topic: ${data.topic}\n`;
-            details += `Niche: ${data.niche}\n`;
-            details += `Duration: ${data.duration_target}s\n\n`;
-            details += `Current Stage: ${data.current_stage}\n`;
-            details += `Progress: ${data.progress.progress_percentage}%\n`;
-            details += `Scenes: ${data.scenes.length}\n`;
-            details += `Cost: $${data.cost_usd.toFixed(2)}\n\n`;
-            details += `Created: ${new Date(data.created_at).toLocaleString()}\n`;
-            details += `Updated: ${new Date(data.updated_at).toLocaleString()}`;
-
-            alert(details);
+            // Open inspection modal
+            openInspectionModal(data);
         }
     } catch (error) {
         alert('Failed to load video details: ' + error.message);
+    }
+}
+
+function openInspectionModal(videoData) {
+    // Set title
+    document.getElementById('modal-video-title').textContent = videoData.title;
+    document.getElementById('modal-video-id').textContent = `${videoData.topic} • ${videoData.video_id}`;
+
+    // Build stage tabs
+    const stageNames = Object.keys(videoData.stage_statuses || {});
+    let tabsHtml = '';
+    stageNames.forEach((stageName, index) => {
+        const stageData = videoData.stage_statuses[stageName];
+        const status = stageData.status || 'unknown';
+        const statusClass = status === 'completed' ? 'completed' : status === 'error' ? 'error' : '';
+        const activeClass = index === 0 ? 'active' : '';
+
+        tabsHtml += `
+            <button class="stage-tab ${statusClass} ${activeClass}"
+                    onclick="switchStageTab(event, '${stageName}')">
+                ${stageName.replace(/_/g, ' ').toUpperCase()}
+                ${status === 'completed' ? ' ✓' : status === 'error' ? ' ✗' : ''}
+            </button>
+        `;
+    });
+
+    // Add overview tab
+    tabsHtml = `
+        <button class="stage-tab active" onclick="switchStageTab(event, 'overview')">
+            📋 OVERVIEW
+        </button>
+    ` + tabsHtml;
+
+    document.getElementById('stage-tabs').innerHTML = tabsHtml;
+
+    // Build stage content
+    let contentHtml = '';
+
+    // Overview content
+    contentHtml += `
+        <div class="stage-content active" id="content-overview">
+            <div class="property-grid">
+                <div class="property-item">
+                    <div class="property-label">Topic</div>
+                    <div class="property-value">${videoData.topic || 'N/A'}</div>
+                </div>
+                <div class="property-item">
+                    <div class="property-label">Niche</div>
+                    <div class="property-value">${videoData.niche || 'N/A'}</div>
+                </div>
+                <div class="property-item">
+                    <div class="property-label">Duration Target</div>
+                    <div class="property-value">${videoData.duration_target || 0}s</div>
+                </div>
+                <div class="property-item">
+                    <div class="property-label">Current Stage</div>
+                    <div class="property-value">${videoData.current_stage.replace(/_/g, ' ').toUpperCase()}</div>
+                </div>
+                <div class="property-item">
+                    <div class="property-label">Progress</div>
+                    <div class="property-value">${videoData.progress.progress_percentage}%</div>
+                </div>
+                <div class="property-item">
+                    <div class="property-label">Scenes</div>
+                    <div class="property-value">${videoData.scenes.length}</div>
+                </div>
+                <div class="property-item">
+                    <div class="property-label">Cost</div>
+                    <div class="property-value">$${videoData.cost_usd.toFixed(2)}</div>
+                </div>
+                <div class="property-item">
+                    <div class="property-label">Created</div>
+                    <div class="property-value">${new Date(videoData.created_at).toLocaleString()}</div>
+                </div>
+            </div>
+
+            ${videoData.script ? `
+                <div style="margin-top: 20px;">
+                    <h3 style="color: #667eea; margin-bottom: 10px;">📜 Full Script</h3>
+                    <div class="json-viewer">${escapeHtml(videoData.script)}</div>
+                </div>
+            ` : ''}
+
+            ${videoData.error ? `
+                <div style="margin-top: 20px; background: #2a1a1a; border-left: 3px solid #ef4444; padding: 15px; border-radius: 8px;">
+                    <h3 style="color: #ef4444; margin-bottom: 10px;">❌ Error</h3>
+                    <pre style="color: #ef4444; white-space: pre-wrap;">${escapeHtml(videoData.error)}</pre>
+                </div>
+            ` : ''}
+        </div>
+    `;
+
+    // Stage-specific content
+    stageNames.forEach(stageName => {
+        const stageData = videoData.stage_statuses[stageName];
+        contentHtml += `
+            <div class="stage-content" id="content-${stageName}">
+                <h3 style="color: #667eea; margin-bottom: 15px;">
+                    ${stageName.replace(/_/g, ' ').toUpperCase()}
+                    <span style="color: ${stageData.status === 'completed' ? '#10b981' : '#ef4444'}; margin-left: 10px;">
+                        ${stageData.status || 'unknown'}
+                    </span>
+                </h3>
+
+                ${renderStageOutput(stageName, stageData)}
+
+                <h4 style="color: #667eea; margin: 20px 0 10px 0;">📦 Raw Output (JSON)</h4>
+                <div class="json-viewer">
+                    <pre>${JSON.stringify(stageData, null, 2)}</pre>
+                </div>
+            </div>
+        `;
+    });
+
+    document.getElementById('modal-body').innerHTML = contentHtml;
+
+    // Show modal
+    document.getElementById('inspection-modal').style.display = 'block';
+}
+
+function renderStageOutput(stageName, stageData) {
+    // Special rendering for different stages
+    if (stageName === 'composition_planning' && stageData.clips) {
+        return renderCompositionClips(stageData.clips);
+    }
+    if (stageName === 'lighting_planning' && stageData.clips) {
+        return renderLightingClips(stageData.clips);
+    }
+    if (stageName === 'script_generation' && stageData.clips) {
+        return renderScriptClips(stageData.clips);
+    }
+    if (stageName === 'motion_graphics_planning' && stageData.clips) {
+        return renderMotionGraphicsClips(stageData.clips);
+    }
+
+    // Default rendering
+    return '';
+}
+
+function renderCompositionClips(clips) {
+    let html = '<div style="margin-bottom: 20px;">';
+    clips.forEach((clip, index) => {
+        const comp = clip.composition || {};
+        html += `
+            <div class="clip-inspector">
+                <div class="clip-header">Clip ${clip.sequence_number || index + 1}: ${clip.narration_text ? clip.narration_text.substring(0, 60) + '...' : 'No narration'}</div>
+                <div class="property-grid">
+                    <div class="property-item">
+                        <div class="property-label">Shot Type</div>
+                        <div class="property-value">${comp.shot_type || 'N/A'}</div>
+                    </div>
+                    <div class="property-item">
+                        <div class="property-label">Camera Angle</div>
+                        <div class="property-value">${comp.camera_angle || 'N/A'}</div>
+                    </div>
+                    <div class="property-item">
+                        <div class="property-label">Camera Movement</div>
+                        <div class="property-value">${comp.camera_movement || 'N/A'}</div>
+                    </div>
+                    <div class="property-item">
+                        <div class="property-label">Rule of Thirds</div>
+                        <div class="property-value">${comp.rule_of_thirds !== undefined ? (comp.rule_of_thirds ? 'Yes' : 'No') : 'N/A'}</div>
+                    </div>
+                    <div class="property-item">
+                        <div class="property-label">Depth of Field</div>
+                        <div class="property-value">${comp.depth_of_field || 'N/A'}</div>
+                    </div>
+                </div>
+                ${comp.framing_notes ? `<div style="margin-top: 10px; padding: 10px; background: #1a1a1a; border-radius: 6px;"><strong>Framing Notes:</strong> ${comp.framing_notes}</div>` : ''}
+            </div>
+        `;
+    });
+    html += '</div>';
+    return html;
+}
+
+function renderLightingClips(clips) {
+    let html = '<div style="margin-bottom: 20px;">';
+    clips.forEach((clip, index) => {
+        const lighting = clip.lighting || {};
+        html += `
+            <div class="clip-inspector">
+                <div class="clip-header">Clip ${clip.sequence_number || index + 1}: ${clip.narration_text ? clip.narration_text.substring(0, 60) + '...' : 'No narration'}</div>
+                <div class="property-grid">
+                    <div class="property-item">
+                        <div class="property-label">Direction</div>
+                        <div class="property-value">${lighting.direction || 'N/A'}</div>
+                    </div>
+                    <div class="property-item">
+                        <div class="property-label">Quality</div>
+                        <div class="property-value">${lighting.quality || 'N/A'}</div>
+                    </div>
+                    <div class="property-item">
+                        <div class="property-label">Intensity</div>
+                        <div class="property-value">${lighting.intensity || 'N/A'}</div>
+                    </div>
+                    <div class="property-item">
+                        <div class="property-label">Color Temp</div>
+                        <div class="property-value">${lighting.color_temperature || 'N/A'}</div>
+                    </div>
+                    <div class="property-item">
+                        <div class="property-label">Mood</div>
+                        <div class="property-value">${lighting.mood || 'N/A'}</div>
+                    </div>
+                </div>
+                ${lighting.technical_notes ? `<div style="margin-top: 10px; padding: 10px; background: #1a1a1a; border-radius: 6px;"><strong>Technical Notes:</strong> ${lighting.technical_notes}</div>` : ''}
+            </div>
+        `;
+    });
+    html += '</div>';
+    return html;
+}
+
+function renderScriptClips(clips) {
+    let html = '<div style="margin-bottom: 20px;">';
+    clips.forEach((clip, index) => {
+        html += `
+            <div class="clip-inspector">
+                <div class="clip-header">Clip ${clip.sequence_number || index + 1}</div>
+                <div style="margin-top: 10px; padding: 15px; background: #1a1a1a; border-radius: 6px; line-height: 1.6;">
+                    ${escapeHtml(clip.narration_text || 'No narration')}
+                </div>
+                ${clip.characters && clip.characters.length > 0 ? `
+                    <div style="margin-top: 10px;">
+                        <strong style="color: #667eea;">Characters:</strong> ${clip.characters.join(', ')}
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    });
+    html += '</div>';
+    return html;
+}
+
+function renderMotionGraphicsClips(clips) {
+    let html = '<div style="margin-bottom: 20px;">';
+    clips.forEach((clip, index) => {
+        const frame = clip.frame_spec || {};
+        html += `
+            <div class="clip-inspector">
+                <div class="clip-header">Clip ${clip.sequence_number || index + 1}</div>
+                ${frame.start_frame_prompt ? `
+                    <div style="margin-top: 10px; padding: 10px; background: #1a1a1a; border-radius: 6px;">
+                        <strong style="color: #10b981;">Start Frame:</strong><br>
+                        ${escapeHtml(frame.start_frame_prompt)}
+                    </div>
+                ` : ''}
+                ${frame.end_frame_prompt ? `
+                    <div style="margin-top: 10px; padding: 10px; background: #1a1a1a; border-radius: 6px;">
+                        <strong style="color: #ef4444;">End Frame:</strong><br>
+                        ${escapeHtml(frame.end_frame_prompt)}
+                    </div>
+                ` : ''}
+                ${frame.motion_description ? `
+                    <div style="margin-top: 10px; padding: 10px; background: #1a1a1a; border-radius: 6px;">
+                        <strong style="color: #667eea;">Motion:</strong> ${escapeHtml(frame.motion_description)}
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    });
+    html += '</div>';
+    return html;
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function switchStageTab(event, stageName) {
+    // Update tab active state
+    document.querySelectorAll('.stage-tab').forEach(tab => tab.classList.remove('active'));
+    event.target.classList.add('active');
+
+    // Update content active state
+    document.querySelectorAll('.stage-content').forEach(content => content.classList.remove('active'));
+    const targetContent = document.getElementById(`content-${stageName}`);
+    if (targetContent) {
+        targetContent.classList.add('active');
+    }
+}
+
+function closeInspectionModal(event) {
+    if (!event || event.target.id === 'inspection-modal') {
+        document.getElementById('inspection-modal').style.display = 'none';
     }
 }
 
