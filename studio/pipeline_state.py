@@ -71,7 +71,7 @@ class VideoProductionState:
 
     # Current pipeline stage
     current_stage: str  # PipelineStage value
-    stage_statuses: Dict[str, str]  # stage -> StageStatus value
+    stage_statuses: Dict[str, Any]  # stage -> {status, ...data}
 
     # Content
     full_script: Optional[str] = None
@@ -100,7 +100,7 @@ class VideoProductionState:
         if self.published_platforms is None:
             self.published_platforms = []
         if self.stage_statuses is None:
-            self.stage_statuses = {stage.value: StageStatus.PENDING.value for stage in PipelineStage}
+            self.stage_statuses = {stage.value: {"status": StageStatus.PENDING.value} for stage in PipelineStage}
 
 
 class PipelineStateManager:
@@ -141,7 +141,7 @@ class PipelineStateManager:
             niche=niche,
             duration_target=duration_target,
             current_stage=PipelineStage.TOPIC_DISCOVERY.value,
-            stage_statuses={stage.value: StageStatus.PENDING.value for stage in PipelineStage}
+            stage_statuses={stage.value: {"status": StageStatus.PENDING.value} for stage in PipelineStage}
         )
 
         self.save_state(state)
@@ -188,8 +188,11 @@ class PipelineStateManager:
             if state:
                 if stage and state.current_stage != stage.value:
                     continue
-                if status and state.stage_statuses.get(state.current_stage) != status.value:
-                    continue
+                if status:
+                    current_stage_data = state.stage_statuses.get(state.current_stage, {})
+                    current_status = current_stage_data.get("status") if isinstance(current_stage_data, dict) else current_stage_data
+                    if current_status != status.value:
+                        continue
                 videos.append(state)
 
         return videos
@@ -206,21 +209,32 @@ class PipelineStateManager:
         if not state:
             raise ValueError(f"Video {video_id} not found")
 
-        state.stage_statuses[stage.value] = status.value
+        # Initialize stage data dict if it doesn't exist or is just a string (old format)
+        if not isinstance(state.stage_statuses.get(stage.value), dict):
+            state.stage_statuses[stage.value] = {}
+
+        # Update status
+        state.stage_statuses[stage.value]["status"] = status.value
+
+        # Add any additional data to the stage dict
+        if data:
+            state.stage_statuses[stage.value].update(data)
 
         if status == StageStatus.COMPLETED:
             # Move to next stage
             next_stage = self._get_next_stage(stage)
             if next_stage:
                 state.current_stage = next_stage.value
-                state.stage_statuses[next_stage.value] = StageStatus.PENDING.value
+                if next_stage.value not in state.stage_statuses or not isinstance(state.stage_statuses[next_stage.value], dict):
+                    state.stage_statuses[next_stage.value] = {}
+                state.stage_statuses[next_stage.value]["status"] = StageStatus.PENDING.value
             else:
                 state.current_stage = PipelineStage.COMPLETE.value
 
         if status == StageStatus.FAILED and data and 'error' in data:
             state.error_message = data['error']
 
-        # Update data fields if provided
+        # Also update state attributes if they exist (for backward compatibility)
         if data:
             for key, value in data.items():
                 if hasattr(state, key):
@@ -269,8 +283,9 @@ class PipelineStateManager:
 
         total_stages = len(PipelineStage) - 1  # Exclude COMPLETE
         completed_stages = sum(
-            1 for status in state.stage_statuses.values()
-            if status == StageStatus.COMPLETED.value
+            1 for stage_data in state.stage_statuses.values()
+            if (isinstance(stage_data, dict) and stage_data.get("status") == StageStatus.COMPLETED.value) or
+               (isinstance(stage_data, str) and stage_data == StageStatus.COMPLETED.value)
         )
 
         return {
