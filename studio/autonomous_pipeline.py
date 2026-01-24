@@ -16,6 +16,14 @@ from studio.pipeline_state import (
 )
 from studio.agents.ideas_scraper_agent import IdeasScraperAgent
 from studio.agents.analytics_agent import AnalyticsAgent
+from studio.agents.script_agent import ScriptAgent
+from studio.agents.character_lock_agent import CharacterLockAgent
+from studio.agents.lighting_agent import LightingAgent
+from studio.agents.composition_agent import CompositionAgent
+from studio.agents.frame_agent import FrameAgent
+from studio.agents.video_agent import VideoAgent, AudioAgent
+from studio.agents.assembly_agent import AssemblyAgent
+from studio.schemas import ProductionJob, ProductionMode, AgentStage
 
 
 class AutonomousPipeline:
@@ -39,13 +47,23 @@ class AutonomousPipeline:
         self.channel_id = channel_id
         self.state_manager = PipelineStateManager()
 
-        # Initialize agents
+        # Initialize discovery agents
         self.ideas_agent = IdeasScraperAgent(channel_id=channel_id)
 
         if channel_id:
             self.analytics_agent = AnalyticsAgent(channel_id=channel_id)
         else:
             self.analytics_agent = None
+
+        # Initialize production agents
+        self.script_agent = ScriptAgent()
+        self.character_agent = CharacterLockAgent()
+        self.lighting_agent = LightingAgent()
+        self.composition_agent = CompositionAgent()
+        self.frame_agent = FrameAgent()
+        self.video_agent = VideoAgent()
+        self.audio_agent = AudioAgent()
+        self.assembly_agent = AssemblyAgent()
 
         print(f"\n{'='*60}")
         print(f"🤖 AUTONOMOUS PIPELINE INITIALIZED")
@@ -192,18 +210,38 @@ class AutonomousPipeline:
             StageStatus.IN_PROGRESS
         )
 
-        # TODO: Implement actual script generation with Claude
-        # For now, generate a structured script
-        script = self._generate_mock_script(state.topic, state.duration_target)
+        # Create ProductionJob for the agents
+        job = ProductionJob(
+            job_id=state.video_id,
+            channel_id=self.channel_id or "default",
+            created_at=datetime.now(),
+            mode=ProductionMode.AUTO,
+            current_stage=AgentStage.SCRIPT,
+            title=state.title,
+            topic=state.topic,
+            duration_target=state.duration_target,
+            platform="youtube",
+            visual_style="cinematic",
+            tone="engaging"
+        )
+
+        # Generate script using ScriptAgent
+        clips = await self.script_agent.generate_script(job)
+
+        # Build full script from clips
+        full_script = "\n\n".join([
+            f"[SCENE {clip.sequence_number}]\n{clip.narration_text}"
+            for clip in clips
+        ])
 
         self.state_manager.update_stage(
             state.video_id,
             PipelineStage.SCRIPT_GENERATION,
             StageStatus.COMPLETED,
-            {"full_script": script}
+            {"full_script": full_script, "clips": [self._clip_to_dict(c) for c in clips]}
         )
 
-        print(f"   ✅ Script generated ({len(script)} chars)")
+        print(f"   ✅ Script generated ({len(clips)} scenes, {len(full_script)} chars)")
 
     async def _run_scene_decomposition(self, state: VideoProductionState):
         """Stage 3: Scene Decomposition"""
@@ -215,20 +253,22 @@ class AutonomousPipeline:
             StageStatus.IN_PROGRESS
         )
 
-        # Reload state to get script
+        # Reload state to get script and clips
         state = self.state_manager.load_state(state.video_id)
 
-        # TODO: Implement actual scene decomposition with Claude
-        # For now, create mock scenes based on duration
-        num_scenes = int(state.duration_target / 5)  # 5 sec per scene
+        # Scenes were already created by script agent
+        # Convert clips data to SceneData objects
+        clips_data = state.stage_statuses.get(PipelineStage.SCRIPT_GENERATION.value, {}).get("clips", [])
 
-        for i in range(num_scenes):
+        for clip_dict in clips_data:
             scene = SceneData(
-                scene_id=f"scene_{i:03d}",
-                script_excerpt=f"Scene {i+1} content",
-                duration_seconds=5.0,
+                scene_id=f"scene_{clip_dict['sequence_number']:03d}",
+                script_excerpt=clip_dict.get('narration_text', ''),
+                duration_seconds=clip_dict.get('duration', 5.0),
                 status="pending"
             )
+            # Store full clip data in agent_outputs
+            scene.agent_outputs['clip_data'] = clip_dict
             self.state_manager.add_scene(state.video_id, scene)
 
         self.state_manager.update_stage(
@@ -237,7 +277,7 @@ class AutonomousPipeline:
             StageStatus.COMPLETED
         )
 
-        print(f"   ✅ {num_scenes} scenes created")
+        print(f"   ✅ {len(clips_data)} scenes created")
 
     async def _run_character_lock(self, state: VideoProductionState):
         """Stage 4: Character Lock"""
@@ -249,23 +289,31 @@ class AutonomousPipeline:
             StageStatus.IN_PROGRESS
         )
 
-        # TODO: Implement character creation and locking
-        # Characters must be created ONCE and reused across all scenes
+        # Reload state to get clips
+        state = self.state_manager.load_state(state.video_id)
 
+        # Reconstruct job and clips from state
+        job, clips = self._reconstruct_job_and_clips(state)
+
+        # Lock characters using CharacterLockAgent
+        job = await self.character_agent.lock_characters(job, clips)
+
+        # Convert characters to dict for storage
         characters = [
             {
-                "character_id": "char_001",
-                "name": "Narrator",
-                "description": "Documentary narrator voice",
-                "type": "voiceover"
+                "character_id": char.character_id,
+                "name": char.name,
+                "visual_description": char.visual_description,
+                "appearance_notes": char.appearance_notes
             }
+            for char in job.global_characters
         ]
 
         self.state_manager.update_stage(
             state.video_id,
             PipelineStage.CHARACTER_LOCK,
             StageStatus.COMPLETED,
-            {"characters": characters}
+            {"characters": characters, "clips": [self._clip_to_dict(c) for c in clips]}
         )
 
         print(f"   ✅ {len(characters)} characters locked")
@@ -280,15 +328,23 @@ class AutonomousPipeline:
             StageStatus.IN_PROGRESS
         )
 
-        # TODO: Implement lighting planning for each scene
+        # Reload state to get clips
+        state = self.state_manager.load_state(state.video_id)
+
+        # Reconstruct job and clips
+        job, clips = self._reconstruct_job_and_clips(state)
+
+        # Design lighting using LightingAgent
+        clips = await self.lighting_agent.design_lighting(job, clips)
 
         self.state_manager.update_stage(
             state.video_id,
             PipelineStage.LIGHTING_PLANNING,
-            StageStatus.COMPLETED
+            StageStatus.COMPLETED,
+            {"clips": [self._clip_to_dict(c) for c in clips]}
         )
 
-        print(f"   ✅ Lighting planned")
+        print(f"   ✅ Lighting planned for {len(clips)} scenes")
 
     async def _run_composition_planning(self, state: VideoProductionState):
         """Stage 6: Composition Planning"""
@@ -300,15 +356,23 @@ class AutonomousPipeline:
             StageStatus.IN_PROGRESS
         )
 
-        # TODO: Implement composition planning
+        # Reload state to get clips
+        state = self.state_manager.load_state(state.video_id)
+
+        # Reconstruct job and clips
+        job, clips = self._reconstruct_job_and_clips(state)
+
+        # Design composition using CompositionAgent
+        clips = await self.composition_agent.design_composition(job, clips)
 
         self.state_manager.update_stage(
             state.video_id,
             PipelineStage.COMPOSITION_PLANNING,
-            StageStatus.COMPLETED
+            StageStatus.COMPLETED,
+            {"clips": [self._clip_to_dict(c) for c in clips]}
         )
 
-        print(f"   ✅ Composition planned")
+        print(f"   ✅ Composition planned for {len(clips)} scenes")
 
     async def _run_motion_graphics_planning(self, state: VideoProductionState):
         """Stage 7: Motion Graphics Planning"""
@@ -320,15 +384,23 @@ class AutonomousPipeline:
             StageStatus.IN_PROGRESS
         )
 
-        # TODO: Plan motion graphics overlays, maps, diagrams
+        # Reload state to get clips
+        state = self.state_manager.load_state(state.video_id)
+
+        # Reconstruct job and clips
+        job, clips = self._reconstruct_job_and_clips(state)
+
+        # Generate frame specifications using FrameAgent
+        clips = await self.frame_agent.generate_frame_specs(job, clips)
 
         self.state_manager.update_stage(
             state.video_id,
             PipelineStage.MOTION_GRAPHICS_PLANNING,
-            StageStatus.COMPLETED
+            StageStatus.COMPLETED,
+            {"clips": [self._clip_to_dict(c) for c in clips]}
         )
 
-        print(f"   ✅ Motion graphics planned")
+        print(f"   ✅ Frame specifications generated for {len(clips)} scenes")
 
     async def _run_clip_generation(self, state: VideoProductionState):
         """Stage 8: Clip Generation"""
@@ -343,39 +415,42 @@ class AutonomousPipeline:
         # Reload state to get scenes
         state = self.state_manager.load_state(state.video_id)
 
-        # TODO: Generate actual video clips using AI models
-        # For each scene:
-        #   1. Generate start frame
-        #   2. Generate end frame
-        #   3. Interpolate between frames
-        #   4. Save clip
+        # Reconstruct job and clips
+        job, clips = self._reconstruct_job_and_clips(state)
 
-        for i, scene in enumerate(state.scenes):
-            print(f"   🎥 Generating clip {i+1}/{len(state.scenes)}: {scene['scene_id']}")
+        # Generate videos using VideoAgent
+        clips = await self.video_agent.generate_videos(job, clips)
 
-            # TODO: Actual generation
-            clip_path = f"data/videos/{state.video_id}/{scene['scene_id']}.mp4"
+        # Generate audio using AudioAgent
+        clips = await self.audio_agent.generate_audio(job, clips)
+
+        # Update scenes with generated content
+        for i, clip in enumerate(clips):
+            scene_id = f"scene_{clip.sequence_number:03d}"
 
             self.state_manager.update_scene(
                 state.video_id,
-                scene['scene_id'],
+                scene_id,
                 {
-                    "clip_output_path": clip_path,
-                    "status": "completed"
+                    "clip_output_path": clip.video_url,
+                    "audio_path": clip.audio_url,
+                    "status": "completed" if clip.video_status == "complete" else "failed"
                 }
             )
 
         self.state_manager.update_stage(
             state.video_id,
             PipelineStage.CLIP_GENERATION,
-            StageStatus.COMPLETED
+            StageStatus.COMPLETED,
+            {"clips": [self._clip_to_dict(c) for c in clips]}
         )
 
-        print(f"   ✅ {len(state.scenes)} clips generated")
+        completed = sum(1 for c in clips if c.video_status == "complete")
+        print(f"   ✅ {completed}/{len(clips)} clips generated successfully")
 
     async def _run_editor_assembly(self, state: VideoProductionState):
-        """Stage 9: Editor Assembly (Remotion)"""
-        print(f"▶️  STAGE 9: Editor Assembly (Remotion)")
+        """Stage 9: Editor Assembly"""
+        print(f"▶️  STAGE 9: Editor Assembly")
 
         self.state_manager.update_stage(
             state.video_id,
@@ -383,13 +458,16 @@ class AutonomousPipeline:
             StageStatus.IN_PROGRESS
         )
 
-        # TODO: Use Remotion to assemble final video
-        # - Stitch clips together
-        # - Add motion graphics
-        # - Sync audio
-        # - Render final video
+        # Reload state to get clips
+        state = self.state_manager.load_state(state.video_id)
 
-        final_path = f"data/videos/final/{state.video_id}.mp4"
+        # Reconstruct job and clips
+        job, clips = self._reconstruct_job_and_clips(state)
+
+        # Assemble final video using AssemblyAgent
+        job = await self.assembly_agent.assemble_video(job, clips)
+
+        final_path = job.final_video_path or f"data/videos/final/{state.video_id}.mp4"
 
         self.state_manager.update_stage(
             state.video_id,
@@ -498,16 +576,149 @@ class AutonomousPipeline:
             return f"{hook_angle}: {topic}"
         return topic
 
-    def _generate_mock_script(self, topic: str, duration: float) -> str:
-        """Generate mock script for testing"""
-        return f"""
-[HOOK]
-{topic}
+    def _reconstruct_job_and_clips(self, state: VideoProductionState):
+        """Reconstruct ProductionJob and clips from state"""
+        from studio.schemas import SceneClip, CharacterSpec, LightingSpec, CompositionSpec, FrameSpec
 
-[BODY]
-This is a documentary-style script about {topic}.
-Duration: {duration} seconds.
+        # Create ProductionJob
+        job = ProductionJob(
+            job_id=state.video_id,
+            channel_id=self.channel_id or "default",
+            created_at=datetime.fromisoformat(state.created_at) if isinstance(state.created_at, str) else state.created_at,
+            mode=ProductionMode.AUTO,
+            current_stage=AgentStage.SCRIPT,
+            title=state.title,
+            topic=state.topic,
+            duration_target=state.duration_target,
+            platform="youtube",
+            visual_style="cinematic",
+            tone="engaging"
+        )
 
-[CTA]
-Subscribe for more military history content.
-"""
+        # Reconstruct global characters
+        characters_data = state.stage_statuses.get(PipelineStage.CHARACTER_LOCK.value, {}).get("characters", [])
+        job.global_characters = [
+            CharacterSpec(
+                character_id=char.get("character_id", ""),
+                name=char.get("name", ""),
+                visual_description=char.get("visual_description", ""),
+                appearance_notes=char.get("appearance_notes", ""),
+                reference_image_url=None,
+                lora_model_id=None
+            )
+            for char in characters_data
+        ]
+
+        # Get latest clips data from most recent stage
+        clips_data = None
+        for stage in [PipelineStage.MOTION_GRAPHICS_PLANNING, PipelineStage.COMPOSITION_PLANNING,
+                      PipelineStage.LIGHTING_PLANNING, PipelineStage.CHARACTER_LOCK,
+                      PipelineStage.SCRIPT_GENERATION]:
+            stage_data = state.stage_statuses.get(stage.value, {})
+            if "clips" in stage_data:
+                clips_data = stage_data["clips"]
+                break
+
+        if not clips_data:
+            clips_data = []
+
+        # Reconstruct clips
+        clips = []
+        for clip_dict in clips_data:
+            clip = SceneClip(
+                clip_id=clip_dict.get("clip_id", f"{state.video_id}_scene_{clip_dict.get('sequence_number', 1)}"),
+                sequence_number=clip_dict.get("sequence_number", 1),
+                script_content=clip_dict.get("script_content", ""),
+                narration_text=clip_dict.get("narration_text", ""),
+                scene_description=clip_dict.get("scene_description", ""),
+                emotional_beat=clip_dict.get("emotional_beat", "engaging"),
+                duration=clip_dict.get("duration", 5.0)
+            )
+
+            # Reconstruct lighting if present
+            if "lighting" in clip_dict and clip_dict["lighting"]:
+                clip.lighting = LightingSpec(
+                    lighting_type=clip_dict["lighting"].get("lighting_type", "natural"),
+                    direction=clip_dict["lighting"].get("direction", "front"),
+                    intensity=clip_dict["lighting"].get("intensity", "medium"),
+                    color_temperature=clip_dict["lighting"].get("color_temperature", "neutral"),
+                    mood=clip_dict["lighting"].get("mood", "balanced"),
+                    technical_notes=clip_dict["lighting"].get("technical_notes", "")
+                )
+
+            # Reconstruct composition if present
+            if "composition" in clip_dict and clip_dict["composition"]:
+                clip.composition = CompositionSpec(
+                    shot_type=clip_dict["composition"].get("shot_type", "medium"),
+                    camera_angle=clip_dict["composition"].get("camera_angle", "eye_level"),
+                    camera_movement=clip_dict["composition"].get("camera_movement", "static"),
+                    framing_notes=clip_dict["composition"].get("framing_notes", ""),
+                    depth_of_field=clip_dict["composition"].get("depth_of_field", "normal")
+                )
+
+            # Reconstruct frame spec if present
+            if "frame_spec" in clip_dict and clip_dict["frame_spec"]:
+                clip.frame_spec = FrameSpec(
+                    start_frame_prompt=clip_dict["frame_spec"].get("start_frame_prompt", ""),
+                    end_frame_prompt=clip_dict["frame_spec"].get("end_frame_prompt", ""),
+                    motion_description=clip_dict["frame_spec"].get("motion_description", ""),
+                    transition_type=clip_dict["frame_spec"].get("transition_type", "cut"),
+                    duration_seconds=clip_dict["frame_spec"].get("duration_seconds", 5.0)
+                )
+
+            # Add video/audio status
+            clip.video_url = clip_dict.get("video_url")
+            clip.audio_url = clip_dict.get("audio_url")
+            clip.video_status = clip_dict.get("video_status", "pending")
+
+            clips.append(clip)
+
+        return job, clips
+
+    def _clip_to_dict(self, clip) -> dict:
+        """Convert SceneClip to dict for storage"""
+        result = {
+            "clip_id": clip.clip_id,
+            "sequence_number": clip.sequence_number,
+            "script_content": clip.script_content,
+            "narration_text": clip.narration_text,
+            "scene_description": clip.scene_description,
+            "emotional_beat": clip.emotional_beat,
+            "duration": clip.duration,
+            "video_url": clip.video_url,
+            "audio_url": clip.audio_url,
+            "video_status": clip.video_status
+        }
+
+        # Add lighting if present
+        if clip.lighting:
+            result["lighting"] = {
+                "lighting_type": clip.lighting.lighting_type,
+                "direction": clip.lighting.direction,
+                "intensity": clip.lighting.intensity,
+                "color_temperature": clip.lighting.color_temperature,
+                "mood": clip.lighting.mood,
+                "technical_notes": clip.lighting.technical_notes
+            }
+
+        # Add composition if present
+        if clip.composition:
+            result["composition"] = {
+                "shot_type": clip.composition.shot_type,
+                "camera_angle": clip.composition.camera_angle,
+                "camera_movement": clip.composition.camera_movement,
+                "framing_notes": clip.composition.framing_notes,
+                "depth_of_field": clip.composition.depth_of_field
+            }
+
+        # Add frame spec if present
+        if clip.frame_spec:
+            result["frame_spec"] = {
+                "start_frame_prompt": clip.frame_spec.start_frame_prompt,
+                "end_frame_prompt": clip.frame_spec.end_frame_prompt,
+                "motion_description": clip.frame_spec.motion_description,
+                "transition_type": clip.frame_spec.transition_type,
+                "duration_seconds": clip.frame_spec.duration_seconds
+            }
+
+        return result
