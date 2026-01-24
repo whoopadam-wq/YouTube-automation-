@@ -160,6 +160,79 @@ class KieAIProvider:
         raise TimeoutError(f"Veo 3 generation timed out after {max_wait}s")
 
     # ========================================================================
+    # GENERIC WRAPPER METHODS (for backward compatibility)
+    # ========================================================================
+
+    def generate_image(
+        self,
+        prompt: str,
+        model: str = "nano-banana-pro",
+        resolution: str = "1024x1024",
+        **kwargs
+    ) -> str:
+        """
+        Generic image generation wrapper
+        Automatically routes to the correct model-specific method
+        Returns the image URL
+        """
+        if model == "nano-banana-pro":
+            # Parse resolution string like "1024x1024" or "1920x1080"
+            if "x" in resolution:
+                width, height = map(int, resolution.split("x"))
+            else:
+                width = height = 1024
+
+            result = self.generate_image_nano_banana_pro(
+                prompt=prompt,
+                width=width,
+                height=height,
+                num_inference_steps=kwargs.get("num_inference_steps", 20),
+                guidance_scale=kwargs.get("guidance_scale", 3.5)
+            )
+
+            # Extract image URL from response
+            # The response should have an 'image_url' or 'url' field
+            return result.get("image_url") or result.get("url") or result.get("output_url", "")
+        else:
+            raise ValueError(f"Unsupported image model: {model}")
+
+    async def generate_video(
+        self,
+        prompt: str,
+        model: str = "veo-3",
+        duration: float = 5.0,
+        resolution: str = "1920x1080",
+        fps: int = 30,
+        reference_image_url: Optional[str] = None,
+        **kwargs
+    ) -> str:
+        """
+        Generic video generation wrapper
+        Automatically routes to the correct model-specific method
+        Returns video URL after waiting for completion
+        """
+        if model == "veo-3":
+            # Map resolution to aspect ratio for Veo 3
+            aspect_ratio = "16:9"  # Default
+            if resolution == "1920x1080" or resolution == "16:9":
+                aspect_ratio = "16:9"
+            elif resolution == "1080x1920" or resolution == "9:16":
+                aspect_ratio = "9:16"
+            elif resolution == "1:1":
+                aspect_ratio = "1:1"
+
+            return await self.generate_video_veo3_wait(
+                prompt=prompt,
+                start_image_url=reference_image_url,
+                end_image_url=kwargs.get("end_image_url"),
+                duration=duration,
+                aspect_ratio=aspect_ratio,
+                max_wait=kwargs.get("max_wait", 600)
+            )
+        else:
+            raise ValueError(f"Unsupported video model: {model}")
+
+    # ========================================================================
     # TEXT GENERATION
     # ========================================================================
 

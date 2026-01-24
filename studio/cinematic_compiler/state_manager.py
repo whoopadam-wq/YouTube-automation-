@@ -5,7 +5,7 @@ Handles persistent storage and retrieval of project state
 import os
 import json
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 
 from .schemas import CinematicProject, CinematicScene, CharacterIdentity

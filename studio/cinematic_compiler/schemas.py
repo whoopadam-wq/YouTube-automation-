@@ -209,8 +209,6 @@ class LightingPhysics:
     primary_direction: str
     primary_color_temp: str  # e.g., "5600K daylight", "3200K tungsten"
 
-    secondary_sources: List[str] = field(default_factory=list)
-
     # Shadow behavior
     shadow_direction: str
     shadow_hardness: str  # "hard", "soft", "diffused"
@@ -219,6 +217,9 @@ class LightingPhysics:
     # Ambient light
     ambient_level: str  # "low", "medium", "high"
     ambient_color: str
+
+    # Fields with defaults must come last
+    secondary_sources: List[str] = field(default_factory=list)
 
     # Enforcement
     natural_light_only: bool = True
