@@ -20,6 +20,15 @@ from studio.pipeline_state import PipelineStateManager, PipelineStage, StageStat
 app = Flask(__name__)
 CORS(app)
 
+# Print text model configuration status
+from studio.text_model_config import print_text_config_status
+from studio.tool_config_loader import get_tool_config
+print_text_config_status()
+
+# Load and print media tool configuration
+tool_config = get_tool_config()
+tool_config.print_config()
+
 # Initialize orchestrator
 orchestrator = ProductionOrchestrator()
 post_manager = PostManager()

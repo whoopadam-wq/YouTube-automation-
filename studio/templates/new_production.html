@@ -106,6 +106,41 @@
 </div>
 
 <script>
+// Save form state to localStorage on input
+function saveFormState() {
+    const form = document.getElementById('production-form');
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData);
+    localStorage.setItem('productionFormDraft', JSON.stringify(data));
+}
+
+// Restore form state from localStorage
+function restoreFormState() {
+    const savedData = localStorage.getItem('productionFormDraft');
+    if (!savedData) return;
+
+    try {
+        const data = JSON.parse(savedData);
+        const form = document.getElementById('production-form');
+
+        for (const [key, value] of Object.entries(data)) {
+            const input = form.querySelector(`[name="${key}"]`);
+            if (input) {
+                input.value = value;
+            }
+        }
+        console.log('✅ Restored form state from localStorage');
+    } catch (error) {
+        console.error('Failed to restore form state:', error);
+    }
+}
+
+// Track current production in localStorage
+function setCurrentProduction(jobId) {
+    localStorage.setItem('currentProductionId', jobId);
+    localStorage.setItem('currentProductionTimestamp', new Date().toISOString());
+}
+
 async function createProduction(event) {
     event.preventDefault();
 
@@ -133,6 +168,12 @@ async function createProduction(event) {
         const createData = await createResponse.json();
         const jobId = createData.job.job_id;
 
+        // Save as current production
+        setCurrentProduction(jobId);
+
+        // Clear form draft
+        localStorage.removeItem('productionFormDraft');
+
         // Start pipeline
         const startResponse = await fetch(`/api/jobs/${jobId}/start`, {
             method: 'POST',
@@ -155,5 +196,17 @@ async function createProduction(event) {
         submitBtn.innerHTML = '🚀 Start Production';
     }
 }
+
+// Auto-save form on input
+document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('production-form');
+
+    // Restore saved state
+    restoreFormState();
+
+    // Auto-save on input
+    form.addEventListener('input', saveFormState);
+    form.addEventListener('change', saveFormState);
+});
 </script>
 {% endblock %}

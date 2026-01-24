@@ -288,10 +288,12 @@
 
             <div class="filter-tabs">
                 <div class="filter-tab active" onclick="filterTools('all')">All</div>
-                <div class="filter-tab" onclick="filterTools('llm')">LLMs</div>
                 <div class="filter-tab" onclick="filterTools('image')">Images</div>
                 <div class="filter-tab" onclick="filterTools('video')">Video</div>
                 <div class="filter-tab" onclick="filterTools('audio')">Audio</div>
+            </div>
+            <div style="background: rgba(102, 126, 234, 0.1); padding: 12px; border-radius: 6px; margin-bottom: 15px; font-size: 12px; border-left: 3px solid #667eea;">
+                <strong>Text AI Locked:</strong> All text generation uses Claude API + Serper API (not configurable)
             </div>
 
             <div id="tools-container">
@@ -481,89 +483,9 @@
 
 <script>
 // Available AI tools with metadata
+// NOTE: Text models are LOCKED to Claude API + Serper API
+// Only media generation tools (image, video, audio) are configurable
 const aiTools = [
-    // LLMs (Large Language Models)
-    {
-        id: 'claude-3-5-sonnet',
-        name: 'Claude 3.5 Sonnet',
-        icon: '🤖',
-        category: 'llm',
-        description: 'Advanced reasoning and script generation',
-        provider: 'Anthropic',
-        status: 'active'
-    },
-    {
-        id: 'claude-3-opus',
-        name: 'Claude 3 Opus',
-        icon: '🧠',
-        category: 'llm',
-        description: 'Most capable Claude model for complex tasks',
-        provider: 'Anthropic',
-        status: 'available'
-    },
-    {
-        id: 'gpt-4',
-        name: 'GPT-4',
-        icon: '✨',
-        category: 'llm',
-        description: 'OpenAI\'s flagship reasoning model',
-        provider: 'OpenAI',
-        status: 'available'
-    },
-    {
-        id: 'gpt-4-turbo',
-        name: 'GPT-4 Turbo',
-        icon: '⚡',
-        category: 'llm',
-        description: 'Faster, more efficient GPT-4',
-        provider: 'OpenAI',
-        status: 'available'
-    },
-    {
-        id: 'gemini-pro',
-        name: 'Gemini Pro',
-        icon: '💎',
-        category: 'llm',
-        description: 'Google\'s multimodal AI model',
-        provider: 'Google',
-        status: 'available'
-    },
-    {
-        id: 'llama-3-70b',
-        name: 'Llama 3 70B',
-        icon: '🦙',
-        category: 'llm',
-        description: 'Meta\'s powerful open-source LLM',
-        provider: 'Meta',
-        status: 'available'
-    },
-    {
-        id: 'mistral-large',
-        name: 'Mistral Large',
-        icon: '🌊',
-        category: 'llm',
-        description: 'High-performance European LLM',
-        provider: 'Mistral AI',
-        status: 'available'
-    },
-    {
-        id: 'command-r-plus',
-        name: 'Command R+',
-        icon: '🎯',
-        category: 'llm',
-        description: 'Enterprise RAG and tool use',
-        provider: 'Cohere',
-        status: 'available'
-    },
-    {
-        id: 'perplexity',
-        name: 'Perplexity',
-        icon: '🔍',
-        category: 'llm',
-        description: 'Real-time web research LLM',
-        provider: 'Perplexity AI',
-        status: 'available'
-    },
     // Image Generation
     {
         id: 'nano-banana-pro',
@@ -690,9 +612,62 @@ const aiTools = [
 let currentFilter = 'all';
 
 // Initialize tools
-function initializeTools() {
+async function initializeTools() {
     renderTools();
+    await loadSavedConfiguration();
     updateAgentStatuses();
+}
+
+// Load saved configuration from server
+async function loadSavedConfiguration() {
+    try {
+        const response = await fetch('/api/tools/config', {
+            method: 'GET'
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            const config = data.config;
+
+            // Restore tool connections for each agent
+            for (const [agentId, toolIds] of Object.entries(config)) {
+                const agentCard = document.querySelector(`.agent-card[data-agent="${agentId}"]`);
+                if (!agentCard) continue;
+
+                const agentToolsContainer = agentCard.querySelector('.agent-tools');
+                agentToolsContainer.innerHTML = ''; // Clear existing
+
+                // Add each saved tool
+                for (const toolId of toolIds) {
+                    const tool = aiTools.find(t => t.id === toolId);
+                    if (!tool) continue;
+
+                    const toolElement = document.createElement('div');
+                    toolElement.className = 'connected-tool';
+                    toolElement.dataset.tool = toolId;
+                    toolElement.innerHTML = `
+                        <span class="tool-icon">${tool.icon}</span>
+                        ${tool.name}
+                        <span class="remove-tool" onclick="removeTool(event, '${agentId}', '${toolId}')">×</span>
+                    `;
+                    agentToolsContainer.appendChild(toolElement);
+                }
+
+                // Update empty state
+                if (agentToolsContainer.children.length > 0) {
+                    agentToolsContainer.classList.remove('empty');
+                    agentToolsContainer.classList.add('has-tools');
+                } else {
+                    agentToolsContainer.classList.add('empty');
+                    agentToolsContainer.classList.remove('has-tools');
+                }
+            }
+
+            console.log('✅ Loaded saved tool configuration');
+        }
+    } catch (error) {
+        console.error('Failed to load saved configuration:', error);
+    }
 }
 
 // Render tool cards

@@ -386,6 +386,9 @@
             <a href="/new-production" class="btn btn-primary">
                 ➕ New Production
             </a>
+            <a id="continue-production-btn" href="#" class="btn btn-secondary" style="display: none;">
+                ▶️ Continue Production
+            </a>
             <button onclick="createSampleJob()" class="btn btn-secondary">
                 🧪 Create Sample Job (Test)
             </button>
@@ -888,12 +891,39 @@ async function retryVideo(videoId) {
     }
 }
 
+// Check for current production in progress
+function checkCurrentProduction() {
+    const currentProdId = localStorage.getItem('currentProductionId');
+    const timestamp = localStorage.getItem('currentProductionTimestamp');
+
+    if (currentProdId) {
+        const continueBtn = document.getElementById('continue-production-btn');
+        continueBtn.href = `/timeline/${currentProdId}`;
+        continueBtn.style.display = 'inline-block';
+
+        // Show how long ago it was created
+        if (timestamp) {
+            const created = new Date(timestamp);
+            const now = new Date();
+            const minutesAgo = Math.floor((now - created) / 60000);
+
+            if (minutesAgo < 60) {
+                continueBtn.textContent = `▶️ Continue Production (${minutesAgo}m ago)`;
+            } else {
+                const hoursAgo = Math.floor(minutesAgo / 60);
+                continueBtn.textContent = `▶️ Continue Production (${hoursAgo}h ago)`;
+            }
+        }
+    }
+}
+
 // Load data on page load
 loadChannelStatus();
 loadJobs();
 loadIdeas();
 loadInsights();
 loadPipelineStatus();
+checkCurrentProduction();
 
 // Auto-refresh
 setInterval(() => {

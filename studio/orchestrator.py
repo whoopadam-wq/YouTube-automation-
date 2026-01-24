@@ -3,7 +3,9 @@ Agent Orchestration Engine
 Runs agents sequentially with Review/Auto modes
 """
 import asyncio
+import json
 from datetime import datetime
+from pathlib import Path
 from typing import Optional
 from studio.schemas import ProductionJob, ProductionMode, AgentStage, SceneClip
 from studio.agents.script_agent import ScriptAgent
@@ -32,8 +34,37 @@ class ProductionOrchestrator:
         self.audio_agent = AudioAgent()
         self.assembly_agent = AssemblyAgent()
 
-        # Job storage (in production, use database)
+        # Job storage directory (persisted to disk)
+        self.jobs_dir = Path("data/studio_jobs")
+        self.jobs_dir.mkdir(parents=True, exist_ok=True)
+
+        # Load existing jobs from disk
         self.jobs = {}
+        self._load_jobs_from_disk()
+
+    def _load_jobs_from_disk(self):
+        """Load all saved jobs from disk"""
+        print(f"📂 Loading jobs from {self.jobs_dir}")
+        for job_file in self.jobs_dir.glob("*.json"):
+            try:
+                with open(job_file, 'r') as f:
+                    job_data = json.load(f)
+                    job = ProductionJob.from_dict(job_data)
+                    self.jobs[job.job_id] = job
+                    print(f"   ✅ Loaded job: {job.job_id} - {job.title}")
+            except Exception as e:
+                print(f"   ❌ Failed to load {job_file.name}: {e}")
+
+        print(f"📂 Loaded {len(self.jobs)} job(s) from disk\n")
+
+    def _save_job_to_disk(self, job: ProductionJob):
+        """Save a job to disk"""
+        job_file = self.jobs_dir / f"{job.job_id}.json"
+        try:
+            with open(job_file, 'w') as f:
+                json.dump(job.to_dict(), f, indent=2)
+        except Exception as e:
+            print(f"❌ Failed to save job {job.job_id} to disk: {e}")
 
     async def create_job(
         self,
@@ -79,6 +110,7 @@ class ProductionOrchestrator:
         )
 
         self.jobs[job_id] = job
+        self._save_job_to_disk(job)  # Persist to disk
 
         print(f"\n{'='*60}")
         print(f"🎬 NEW PRODUCTION JOB: {job_id}")
@@ -87,6 +119,7 @@ class ProductionOrchestrator:
         print(f"Platform: {platform}")
         print(f"Duration: {duration_target}s")
         print(f"Mode: {mode.value.upper()}")
+        print(f"💾 Saved to: {self.jobs_dir / f'{job_id}.json'}")
         print(f"{'='*60}\n")
 
         return job
@@ -133,6 +166,9 @@ class ProductionOrchestrator:
                     job.current_stage = AgentStage.COMPLETE
                     job.is_complete = True
 
+                # Save job state after stage transition
+                self._save_job_to_disk(job)
+
             if job.is_complete:
                 print(f"\n{'='*60}")
                 print(f"✅ PRODUCTION COMPLETE: {job.title}")
@@ -143,6 +179,7 @@ class ProductionOrchestrator:
         except Exception as e:
             print(f"\n❌ Pipeline failed at stage {job.current_stage.value}: {e}")
             job.error_message = str(e)
+            self._save_job_to_disk(job)  # Save error state
             raise
 
         return job
@@ -264,4 +301,5 @@ class ProductionOrchestrator:
                 print(f"✅ Updated clip {clip_id}: {updates}")
                 break
 
+        self._save_job_to_disk(job)  # Persist changes
         return job

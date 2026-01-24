@@ -46,6 +46,10 @@ class CharacterSpec:
             "appearance_notes": self.appearance_notes
         }
 
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'CharacterSpec':
+        return cls(**data)
+
 
 @dataclass
 class LightingSpec:
@@ -66,6 +70,10 @@ class LightingSpec:
             "mood": self.mood,
             "technical_notes": self.technical_notes
         }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'LightingSpec':
+        return cls(**data)
 
 
 @dataclass
@@ -88,6 +96,10 @@ class CompositionSpec:
             "depth_of_field": self.depth_of_field
         }
 
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'CompositionSpec':
+        return cls(**data)
+
 
 @dataclass
 class FrameSpec:
@@ -106,6 +118,10 @@ class FrameSpec:
             "transition_type": self.transition_type,
             "duration_seconds": self.duration_seconds
         }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'FrameSpec':
+        return cls(**data)
 
 
 @dataclass
@@ -165,6 +181,28 @@ class SceneClip:
             "is_locked": self.is_locked,
             "override_notes": self.override_notes
         }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'SceneClip':
+        return cls(
+            clip_id=data["clip_id"],
+            sequence_number=data["sequence_number"],
+            script_content=data["script_content"],
+            narration_text=data["narration_text"],
+            scene_description=data["scene_description"],
+            emotional_beat=data["emotional_beat"],
+            duration=data["duration"],
+            characters=[CharacterSpec.from_dict(c) for c in data.get("characters", [])],
+            lighting=LightingSpec.from_dict(data["lighting"]) if data.get("lighting") else None,
+            composition=CompositionSpec.from_dict(data["composition"]) if data.get("composition") else None,
+            frame_spec=FrameSpec.from_dict(data["frame_spec"]) if data.get("frame_spec") else None,
+            video_url=data.get("video_url"),
+            video_status=data.get("video_status", "pending"),
+            audio_url=data.get("audio_url"),
+            captions_data=data.get("captions_data"),
+            is_locked=data.get("is_locked", False),
+            override_notes=data.get("override_notes", "")
+        )
 
 
 @dataclass
@@ -248,3 +286,32 @@ class ProductionJob:
         if current_index < len(stages) - 1:
             return stages[current_index + 1]
         return None
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ProductionJob':
+        """Deserialize ProductionJob from dictionary"""
+        return cls(
+            job_id=data["job_id"],
+            channel_id=data["channel_id"],
+            created_at=datetime.fromisoformat(data["created_at"]),
+            mode=ProductionMode(data["mode"]),
+            current_stage=AgentStage(data["current_stage"]),
+            title=data["title"],
+            topic=data["topic"],
+            duration_target=data["duration_target"],
+            platform=data["platform"],
+            clips=[SceneClip.from_dict(c) for c in data.get("clips", [])],
+            global_characters=[CharacterSpec.from_dict(c) for c in data.get("global_characters", [])],
+            visual_style=data.get("visual_style", ""),
+            tone=data.get("tone", ""),
+            final_video_url=data.get("final_video_url"),
+            final_video_path=data.get("final_video_path"),
+            is_complete=data.get("is_complete", False),
+            error_message=data.get("error_message"),
+            posted_to_youtube=data.get("posted_to_youtube", False),
+            posted_to_tiktok=data.get("posted_to_tiktok", False),
+            posted_to_instagram=data.get("posted_to_instagram", False),
+            youtube_url=data.get("youtube_url"),
+            tiktok_url=data.get("tiktok_url"),
+            instagram_url=data.get("instagram_url")
+        )
