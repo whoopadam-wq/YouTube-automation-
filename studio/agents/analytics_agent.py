@@ -195,7 +195,8 @@ class AnalyticsAgent:
             playlist_data = response.json()
 
             # Step 3: Get detailed stats for each video
-            cutoff_date = datetime.now() - timedelta(days=days_back)
+            from datetime import timezone
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_back)
 
             for item in playlist_data.get("items", []):
                 video_id = item["snippet"]["resourceId"]["videoId"]

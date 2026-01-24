@@ -337,9 +337,47 @@
         </div>
     </div>
 
+    <!-- Autonomous Production Section -->
+    <div class="card" style="margin-top: 30px; background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+        <h2>🤖 Autonomous Production Pipeline</h2>
+        <p style="opacity: 0.9; margin-bottom: 20px;">Fully automated end-to-end video generation - just click and wait</p>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+            <div class="metric" style="background: rgba(0,0,0,0.2);">
+                <div class="metric-value" id="auto-total-videos">0</div>
+                <div class="metric-label">Videos Produced</div>
+            </div>
+            <div class="metric" style="background: rgba(0,0,0,0.2);">
+                <div class="metric-value" id="auto-in-progress">0</div>
+                <div class="metric-label">In Progress</div>
+            </div>
+            <div class="metric" style="background: rgba(0,0,0,0.2);">
+                <div class="metric-value" id="auto-cost-total">$0</div>
+                <div class="metric-label">Total Cost</div>
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 15px;">
+            <button onclick="startAutonomousProduction()" class="btn btn-primary" style="background: white; color: #059669; flex: 1;">
+                🚀 Start Automatic Production
+            </button>
+            <button onclick="startDailyProduction()" class="btn btn-secondary" style="background: rgba(255,255,255,0.2); color: white;">
+                📅 Run Daily Cycle (1 long + 3 shorts)
+            </button>
+        </div>
+    </div>
+
+    <!-- Autonomous Pipeline Status -->
+    <div class="card" style="margin-top: 20px;">
+        <h2>📊 Pipeline Status</h2>
+        <div id="pipeline-status">
+            <p style="opacity: 0.7;">No autonomous productions running...</p>
+        </div>
+    </div>
+
     <!-- Production Section -->
     <div class="card" style="margin-top: 30px;">
-        <h2>🎬 Productions</h2>
+        <h2>🎬 Manual Productions</h2>
         <div id="jobs-list">
             <p style="opacity: 0.7;">Loading...</p>
         </div>
@@ -668,11 +706,194 @@ async function createSampleJob() {
     }
 }
 
+async function startAutonomousProduction() {
+    if (!confirm('🚀 Start fully automatic video production?\n\nThis will:\n1. Discover a trending topic automatically\n2. Generate a complete script\n3. Create characters and scenes\n4. Generate all video clips\n5. Assemble final video\n6. Publish automatically\n\nThis runs end-to-end without any manual steps.')) {
+        return;
+    }
+
+    const btn = event.target;
+    btn.disabled = true;
+    btn.textContent = '🔄 Starting autonomous production...';
+
+    try {
+        const response = await fetch('/api/autonomous/produce', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({})  // Fully automatic - no parameters needed
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert(`✅ Production Started!\n\nVideo: ${data.title}\nID: ${data.video_id}\n\nCheck Pipeline Status below for real-time progress.`);
+            loadPipelineStatus();
+        } else {
+            alert(`❌ Production failed:\n\n${data.error}`);
+        }
+    } catch (error) {
+        alert('❌ Error: ' + error.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '🚀 Start Automatic Production';
+    }
+}
+
+async function startDailyProduction() {
+    if (!confirm('📅 Start daily production cycle?\n\nThis will:\n1. Produce 1 long-form video (10-12 min)\n2. Extract 3 shorts from it\n3. Publish all automatically\n\nThis is the full daily automation.')) {
+        return;
+    }
+
+    const btn = event.target;
+    btn.disabled = true;
+    btn.textContent = '🔄 Running daily cycle...';
+
+    try {
+        const response = await fetch('/api/autonomous/produce', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ daily_cycle: true })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert(`✅ Daily Production Complete!\n\nLong-form: ${data.video_id}\n\nCheck Pipeline Status for details.`);
+            loadPipelineStatus();
+        } else {
+            alert(`❌ Daily production failed:\n\n${data.error}`);
+        }
+    } catch (error) {
+        alert('❌ Error: ' + error.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '📅 Run Daily Cycle (1 long + 3 shorts)';
+    }
+}
+
+async function loadPipelineStatus() {
+    try {
+        const response = await fetch('/api/autonomous/status');
+        const data = await response.json();
+
+        if (data.videos && data.videos.length > 0) {
+            // Update metrics
+            document.getElementById('auto-total-videos').textContent = data.total;
+            const inProgress = data.videos.filter(v => v.current_stage !== 'complete').length;
+            document.getElementById('auto-in-progress').textContent = inProgress;
+            const totalCost = data.videos.reduce((sum, v) => sum + (v.cost_usd || 0), 0);
+            document.getElementById('auto-cost-total').textContent = `$${totalCost.toFixed(2)}`;
+
+            // Build pipeline status display
+            let html = '<div style="display: flex; flex-direction: column; gap: 15px;">';
+
+            data.videos.slice(0, 10).forEach(video => {
+                const progress = video.progress_percentage;
+                const statusColor = video.current_stage === 'complete' ? '#10b981' : video.error ? '#ef4444' : '#667eea';
+
+                html += `
+                    <div style="background: #2a2a2a; padding: 20px; border-radius: 8px; border-left: 4px solid ${statusColor};">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+                            <div>
+                                <h3 style="font-size: 18px; margin-bottom: 5px;">${video.title}</h3>
+                                <p style="opacity: 0.7; font-size: 14px;">
+                                    Stage: ${video.current_stage.replace(/_/g, ' ').toUpperCase()}
+                                </p>
+                                <p style="opacity: 0.6; font-size: 12px; margin-top: 5px;">
+                                    ${video.scenes_count} scenes • $${video.cost_usd.toFixed(2)} cost
+                                </p>
+                                ${video.error ? `<p style="color: #ef4444; font-size: 13px; margin-top: 5px;">❌ ${video.error}</p>` : ''}
+                            </div>
+                            <div>
+                                ${video.current_stage === 'complete'
+                                    ? '<span style="background: #10b981; padding: 5px 10px; border-radius: 6px; font-size: 12px;">✓ Complete</span>'
+                                    : video.error
+                                    ? '<span style="background: #ef4444; padding: 5px 10px; border-radius: 6px; font-size: 12px;">⚠ Failed</span>'
+                                    : '<span style="background: #667eea; padding: 5px 10px; border-radius: 6px; font-size: 12px;">⏳ In Progress</span>'
+                                }
+                            </div>
+                        </div>
+
+                        <div style="background: #1a1a1a; border-radius: 8px; height: 8px; overflow: hidden; margin: 15px 0;">
+                            <div style="background: ${statusColor}; height: 100%; width: ${progress}%; transition: width 0.3s;"></div>
+                        </div>
+
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+                            <span style="opacity: 0.7; font-size: 12px;">${progress}% complete</span>
+                            <div style="display: flex; gap: 10px;">
+                                <button onclick="viewVideoDetails('${video.video_id}')" class="btn btn-secondary" style="font-size: 12px; padding: 6px 12px;">
+                                    📊 Details
+                                </button>
+                                ${video.error ? `
+                                    <button onclick="retryVideo('${video.video_id}')" class="btn btn-primary" style="font-size: 12px; padding: 6px 12px;">
+                                        🔄 Retry
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += '</div>';
+            document.getElementById('pipeline-status').innerHTML = html;
+        } else {
+            document.getElementById('pipeline-status').innerHTML = '<p style="opacity: 0.7;">No autonomous productions yet. Click "Start Automatic Production" above!</p>';
+        }
+    } catch (error) {
+        console.error('Failed to load pipeline status:', error);
+    }
+}
+
+async function viewVideoDetails(videoId) {
+    try {
+        const response = await fetch(`/api/autonomous/video/${videoId}`);
+        const data = await response.json();
+
+        if (data.video_id) {
+            let details = `Video: ${data.title}\n\n`;
+            details += `Topic: ${data.topic}\n`;
+            details += `Niche: ${data.niche}\n`;
+            details += `Duration: ${data.duration_target}s\n\n`;
+            details += `Current Stage: ${data.current_stage}\n`;
+            details += `Progress: ${data.progress.progress_percentage}%\n`;
+            details += `Scenes: ${data.scenes.length}\n`;
+            details += `Cost: $${data.cost_usd.toFixed(2)}\n\n`;
+            details += `Created: ${new Date(data.created_at).toLocaleString()}\n`;
+            details += `Updated: ${new Date(data.updated_at).toLocaleString()}`;
+
+            alert(details);
+        }
+    } catch (error) {
+        alert('Failed to load video details: ' + error.message);
+    }
+}
+
+async function retryVideo(videoId) {
+    if (!confirm('Retry this video production from the current stage?')) return;
+
+    try {
+        const response = await fetch(`/api/autonomous/video/${videoId}/retry`, {
+            method: 'POST'
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            alert('✅ Retry started!');
+            loadPipelineStatus();
+        } else {
+            alert('❌ Retry failed: ' + data.error);
+        }
+    } catch (error) {
+        alert('❌ Error: ' + error.message);
+    }
+}
+
 // Load data on page load
 loadChannelStatus();
 loadJobs();
 loadIdeas();
 loadInsights();
+loadPipelineStatus();
 
 // Auto-refresh
 setInterval(() => {
@@ -680,6 +901,7 @@ setInterval(() => {
     loadJobs();
     loadIdeas();
     loadInsights();
-}, 10000);
+    loadPipelineStatus();
+}, 5000);  // Refresh every 5 seconds to show real-time progress
 </script>
 {% endblock %}

@@ -65,7 +65,11 @@ class IdeasScraperAgent:
             print("⚠️  ANTHROPIC_API_KEY not set - Ideas Scraper will use basic mode")
             self.client = None
         else:
-            self.client = Anthropic(api_key=api_key)
+            try:
+                self.client = Anthropic(api_key=api_key)
+            except Exception as e:
+                print(f"❌ Failed to initialize Anthropic client: {e}")
+                self.client = None
         self.model = "claude-3-5-sonnet-20241022"
 
         # Research APIs

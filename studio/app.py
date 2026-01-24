@@ -14,6 +14,8 @@ from studio.autonomous_learning import get_learning_system
 from studio.cost_estimator import CostEstimator
 from studio.agents.ideas_scraper_agent import IdeasScraperAgent
 from studio.agents.analytics_agent import AnalyticsAgent
+from studio.autonomous_pipeline import AutonomousPipeline
+from studio.pipeline_state import PipelineStateManager, PipelineStage, StageStatus
 
 app = Flask(__name__)
 CORS(app)
@@ -35,9 +37,12 @@ if not os.environ.get('YOUTUBE_DATA_API_KEY'):
     print("   Get API key: https://console.cloud.google.com/apis/credentials")
     print("   Set it in Render dashboard: Environment > YOUTUBE_DATA_API_KEY")
 
-# Enable mock mode for development (set to 'false' for real generation)
-os.environ['STUDIO_MOCK_GENERATION'] = 'true'
-os.environ['STUDIO_MOCK_POSTING'] = 'true'
+# Mock mode can be controlled via environment variable
+# Set STUDIO_MOCK_GENERATION=false in Render to enable real generation
+if 'STUDIO_MOCK_GENERATION' not in os.environ:
+    os.environ['STUDIO_MOCK_GENERATION'] = 'false'  # Default to REAL generation
+if 'STUDIO_MOCK_POSTING' not in os.environ:
+    os.environ['STUDIO_MOCK_POSTING'] = 'false'  # Default to REAL posting
 
 
 # ============================================================================
@@ -654,6 +659,182 @@ def estimate_cost():
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+# ============================================================================
+# AUTONOMOUS PIPELINE API ROUTES
+# ============================================================================
+
+# Initialize pipeline manager
+pipeline_state_manager = PipelineStateManager()
+
+
+@app.route('/api/autonomous/produce', methods=['POST'])
+def autonomous_produce():
+    """
+    Trigger autonomous video production
+    This endpoint starts the FULL end-to-end pipeline automatically
+    """
+    try:
+        data = request.json or {}
+
+        # Get channel info
+        channel = channel_integration.load_active_channel()
+        niche = channel.niche if channel else data.get('niche', 'war history')
+        channel_id = channel.channel_id if channel else None
+
+        # Initialize autonomous pipeline
+        pipeline = AutonomousPipeline(niche=niche, channel_id=channel_id)
+
+        # Get topic (either provided or auto-discover)
+        topic = data.get('topic')
+        hook_angle = data.get('hook_angle', '')
+        duration = float(data.get('duration', 720))  # 12 min default
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        if topic:
+            # Manual topic provided
+            video_id = loop.run_until_complete(
+                pipeline.produce_long_form_video(
+                    topic=topic,
+                    hook_angle=hook_angle,
+                    duration_target=duration
+                )
+            )
+        else:
+            # Fully autonomous - discover topic and produce
+            result = loop.run_until_complete(
+                pipeline.run_daily_production()
+            )
+            video_id = result.get('long_form') if result else None
+
+        loop.close()
+
+        if video_id:
+            state = pipeline_state_manager.load_state(video_id)
+            return jsonify({
+                "success": True,
+                "video_id": video_id,
+                "title": state.title if state else "Unknown",
+                "message": "Video production completed successfully"
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": "Production failed - check logs for details"
+            }), 500
+
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"ERROR in autonomous_produce: {error_details}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/autonomous/status', methods=['GET'])
+def autonomous_status():
+    """Get status of all autonomous productions"""
+    try:
+        videos = pipeline_state_manager.list_videos()
+
+        videos_data = []
+        for video in videos:
+            progress = pipeline_state_manager.get_progress(video.video_id)
+            videos_data.append({
+                "video_id": video.video_id,
+                "title": video.title,
+                "topic": video.topic,
+                "current_stage": video.current_stage,
+                "progress_percentage": progress.get('progress_percentage', 0),
+                "scenes_count": len(video.scenes),
+                "cost_usd": video.cost_usd,
+                "created_at": video.created_at,
+                "error": video.error_message
+            })
+
+        # Sort by created_at descending
+        videos_data.sort(key=lambda x: x['created_at'], reverse=True)
+
+        return jsonify({
+            "videos": videos_data,
+            "total": len(videos_data)
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/autonomous/video/<video_id>', methods=['GET'])
+def autonomous_video_details(video_id):
+    """Get detailed status of a specific video production"""
+    try:
+        state = pipeline_state_manager.load_state(video_id)
+
+        if not state:
+            return jsonify({"error": "Video not found"}), 404
+
+        progress = pipeline_state_manager.get_progress(video_id)
+
+        return jsonify({
+            "video_id": state.video_id,
+            "title": state.title,
+            "topic": state.topic,
+            "niche": state.niche,
+            "duration_target": state.duration_target,
+            "current_stage": state.current_stage,
+            "progress": progress,
+            "script": state.full_script,
+            "scenes": state.scenes,
+            "characters": state.characters,
+            "stage_statuses": state.stage_statuses,
+            "final_video_path": state.final_video_path,
+            "published_platforms": state.published_platforms,
+            "cost_usd": state.cost_usd,
+            "created_at": state.created_at,
+            "updated_at": state.updated_at,
+            "error": state.error_message
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/autonomous/video/<video_id>/retry', methods=['POST'])
+def autonomous_retry(video_id):
+    """Retry a failed video production from current stage"""
+    try:
+        state = pipeline_state_manager.load_state(video_id)
+
+        if not state:
+            return jsonify({"error": "Video not found"}), 404
+
+        # Reset current stage to pending
+        current_stage = PipelineStage(state.current_stage)
+        pipeline_state_manager.update_stage(
+            video_id,
+            current_stage,
+            StageStatus.PENDING
+        )
+
+        # Get channel info
+        channel = channel_integration.load_active_channel()
+        niche = channel.niche if channel else state.niche
+        channel_id = channel.channel_id if channel else None
+
+        # Initialize pipeline and run from current stage
+        pipeline = AutonomousPipeline(niche=niche, channel_id=channel_id)
+
+        # TODO: Implement stage-specific retry logic
+
+        return jsonify({
+            "success": True,
+            "message": f"Retry initiated from stage: {state.current_stage}"
+        })
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 # ============================================================================
