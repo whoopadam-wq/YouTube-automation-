@@ -364,31 +364,81 @@ class KieAIProvider:
     def generate_audio(
         self,
         text: str,
-        voice_id: str = "default",
-        model: str = "elevenlabs"
+        voice: str = "Rachel",
+        model: str = "elevenlabs/text-to-speech-turbo-2-5",
+        speed: float = 1.0,
+        stability: float = 0.5,
+        similarity_boost: float = 0.75,
+        callback_url: Optional[str] = None
     ) -> str:
         """
-        Generate audio/voice using various TTS models
-        Supports: ElevenLabs, Play.ht, etc.
+        Generate audio/voice using ElevenLabs TTS via Kie AI
+        Returns task_id for polling (synchronous call - polls automatically)
         """
         payload = {
             "model": model,
-            "text": text,
-            "voice_id": voice_id
+            "input": {
+                "text": text,
+                "voice": voice,
+                "speed": speed,
+                "stability": stability,
+                "similarity_boost": similarity_boost
+            }
         }
 
+        if callback_url:
+            payload["callBackUrl"] = callback_url
+
         response = requests.post(
-            f"{self.base_url}/audio/generate",
+            f"{self.base_url}/jobs/createTask",
             headers=self.headers,
             json=payload,
-            timeout=60
+            timeout=30
         )
 
         if response.status_code != 200:
-            raise Exception(f"Audio generation failed: {response.text}")
+            raise Exception(f"Audio generation failed: {response.status_code} - {response.text}")
 
         data = response.json()
-        return data.get("audio_url", "")
+        task_id = data.get("task_id") or data.get("jobId")
+
+        # Poll for completion (TTS is usually fast, max 60s wait)
+        import time
+        max_wait = 60
+        start_time = time.time()
+
+        while time.time() - start_time < max_wait:
+            status_response = requests.get(
+                f"{self.base_url}/jobs/{task_id}",
+                headers=self.headers,
+                timeout=30
+            )
+
+            if status_response.status_code != 200:
+                raise Exception(f"Status check failed: {status_response.text}")
+
+            status_data = status_response.json()
+            status = status_data.get("status", "").lower()
+
+            if status in ["completed", "success"]:
+                # Extract audio URL from response
+                audio_url = (
+                    status_data.get("output", {}).get("audio_url") or
+                    status_data.get("result", {}).get("audio_url") or
+                    status_data.get("audioUrl")
+                )
+                if audio_url:
+                    return audio_url
+                raise Exception(f"Audio completed but no URL in response: {status_data}")
+
+            elif status in ["failed", "error"]:
+                error_msg = status_data.get("error") or status_data.get("message") or "Unknown error"
+                raise Exception(f"Audio generation failed: {error_msg}")
+
+            # Still processing, wait before polling again
+            time.sleep(2)
+
+        raise Exception(f"Audio generation timed out after {max_wait}s")
 
     # ========================================================================
     # UTILITY METHODS

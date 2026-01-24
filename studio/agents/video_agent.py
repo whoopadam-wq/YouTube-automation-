@@ -76,32 +76,33 @@ class VideoAgent:
 
             print(f"   Scene {clip.sequence_number}: Generating frames with Nano Banana Pro...")
 
+            # Determine aspect ratio and resolution based on platform
+            aspect_ratio = "16:9" if job.platform == "youtube" else "9:16"
+            resolution = "1080P"  # Standard HD resolution
+
             # Step 1: Generate start frame image with Nano Banana Pro
             start_image_data = self.provider.generate_image_nano_banana_pro(
                 prompt=clip.frame_spec.start_frame_prompt,
-                width=1920 if job.platform == "youtube" else 1080,
-                height=1080 if job.platform == "youtube" else 1920
+                aspect_ratio=aspect_ratio,
+                resolution=resolution
             )
             start_image_url = start_image_data.get("image_url")
 
             # Step 2: Generate end frame image with Nano Banana Pro
             end_image_data = self.provider.generate_image_nano_banana_pro(
                 prompt=clip.frame_spec.end_frame_prompt,
-                width=1920 if job.platform == "youtube" else 1080,
-                height=1080 if job.platform == "youtube" else 1920
+                aspect_ratio=aspect_ratio,
+                resolution=resolution
             )
             end_image_url = end_image_data.get("image_url")
 
             print(f"   Scene {clip.sequence_number}: Animating with Veo 3...")
 
             # Step 3: Generate video with Veo 3 (animate between frames)
-            aspect_ratio = "16:9" if job.platform == "youtube" else "9:16"
-
+            # Veo 3 expects image_urls as a list of reference images
             video_url = await self.provider.generate_video_veo3_wait(
                 prompt=self._build_video_prompt(clip, job),
-                start_image_url=start_image_url,
-                end_image_url=end_image_url,
-                duration=clip.duration,
+                image_urls=[start_image_url, end_image_url],
                 aspect_ratio=aspect_ratio
             )
 
@@ -195,13 +196,17 @@ class AudioAgent:
 
         try:
             if self.use_kieai and self.provider:
-                # Use ElevenLabs via kie.ai
+                # Use ElevenLabs TTS via kie.ai
                 audio_url = self.provider.generate_audio(
                     text=clip.narration_text,
-                    voice_id="default",
-                    model="elevenlabs"
+                    voice="Rachel",  # Professional female voice
+                    model="elevenlabs/text-to-speech-turbo-2-5",
+                    speed=1.0,
+                    stability=0.5,
+                    similarity_boost=0.75
                 )
                 clip.audio_url = audio_url
+                print(f"   ✅ Audio generated for scene {clip.sequence_number}")
             else:
                 # Direct ElevenLabs API (placeholder)
                 clip.audio_url = f"https://placeholder-audio/{clip.clip_id}.mp3"

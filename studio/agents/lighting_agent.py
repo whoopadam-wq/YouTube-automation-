@@ -7,6 +7,7 @@ import json
 from typing import List
 from anthropic import Anthropic
 from studio.schemas import SceneClip, LightingSpec, ProductionJob
+from studio.config import get_prompt_manager
 
 
 class LightingAgent:
@@ -19,6 +20,7 @@ class LightingAgent:
         api_key = os.environ.get('ANTHROPIC_API_KEY')
         self.client = Anthropic(api_key=api_key) if api_key else None
         self.model = "claude-sonnet-4-5"
+        self.prompt_manager = get_prompt_manager()
 
     async def design_lighting(self, job: ProductionJob, clips: List[SceneClip]) -> List[SceneClip]:
         """
@@ -46,29 +48,25 @@ Emotional Beat: {clip.emotional_beat}
 Characters: {[c.name for c in clip.characters] if clip.characters else "None"}
 """
 
-            prompt = f"""You are a cinematography lighting expert. Design lighting for this scene.
+            # Load prompt from configuration
+            system_prompt = self.prompt_manager.get_system_prompt('lighting_agent')
+            user_prompt = self.prompt_manager.format_prompt(
+                'lighting_agent',
+                'user_prompt_template',
+                scene_description=clip.scene_description,
+                emotional_beat=clip.emotional_beat or 'neutral'
+            )
 
-Video Style: {job.visual_style}
+            # Add job context
+            prompt = f"""Video Style: {job.visual_style}
 Tone: {job.tone}
 
-{scene_context}
-
-Specify lighting that enhances the mood and matches the visual style.
-
-Return JSON:
-{{
-  "lighting_type": "natural|studio|dramatic|soft|hard",
-  "direction": "front|back|side|top|bottom|mixed",
-  "intensity": "low|medium|high",
-  "color_temperature": "warm|neutral|cool",
-  "mood": "describe the lighting mood",
-  "technical_notes": "specific lighting setup details"
-}}
-"""
+{user_prompt}"""
 
             response = self.client.messages.create(
                 model=self.model,
                 max_tokens=500,
+                system=system_prompt if system_prompt else None,
                 messages=[{"role": "user", "content": prompt}]
             )
 
