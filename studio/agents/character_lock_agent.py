@@ -22,7 +22,7 @@ class CharacterLockAgent:
             self.client = None
         else:
             self.client = Anthropic(api_key=api_key)
-        self.model = "claude-3-5-sonnet-20240620"
+        self.model = "claude-3-5-sonnet-20241022"
 
     async def lock_characters(self, job: ProductionJob, clips: List[SceneClip]) -> ProductionJob:
         """

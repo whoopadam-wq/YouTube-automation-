@@ -18,7 +18,7 @@ class CompositionAgent:
     def __init__(self):
         api_key = os.environ.get('ANTHROPIC_API_KEY')
         self.client = Anthropic(api_key=api_key) if api_key else None
-        self.model = "claude-3-5-sonnet-20240620"
+        self.model = "claude-3-5-sonnet-20241022"
 
     async def design_composition(self, job: ProductionJob, clips: List[SceneClip]) -> List[SceneClip]:
         """
