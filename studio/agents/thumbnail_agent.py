@@ -69,7 +69,7 @@ class ThumbnailAgent:
             self.client = None
         else:
             self.client = Anthropic(api_key=api_key)
-        self.model = "claude-3-5-sonnet-20241022"
+        self.model = "claude-3-5-sonnet-20240620"
 
         # Nano Banana Pro for image generation
         kieai_api_key = os.environ.get('KIEAI_API_KEY')

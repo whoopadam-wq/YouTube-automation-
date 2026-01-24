@@ -29,7 +29,7 @@ class ScriptAgent:
             self.client = None
         else:
             self.client = Anthropic(api_key=api_key)
-        self.model = "claude-3-5-sonnet-20241022"
+        self.model = "claude-3-5-sonnet-20240620"
 
         # For web scraping and research
         self.serper_api_key = os.environ.get('SERPER_API_KEY')  # For Google search
