@@ -22,12 +22,14 @@ data/database/*.db
 data/database/*.db-journal
 data/logs/*
 data/channels/*
+data/pipeline/*
 !data/.gitkeep
 !data/assets/.gitkeep
 !data/output/.gitkeep
 !data/database/.gitkeep
 !data/logs/.gitkeep
 !data/channels/.gitkeep
+!data/pipeline/.gitkeep
 
 # Temporary files
 *.tmp
