@@ -20,16 +20,22 @@ class VideoAgent:
 
     def __init__(self):
         self.kieai_api_key = os.environ.get('KIEAI_API_KEY')
-        if not self.kieai_api_key:
-            print("⚠️  KIEAI_API_KEY not set, will use mock mode")
-
         self.use_mock = os.environ.get('STUDIO_MOCK_GENERATION', 'false').lower() == 'true'
+
+        # Validate configuration
+        if not self.kieai_api_key and not self.use_mock:
+            raise ValueError(
+                "KIEAI_API_KEY not set and STUDIO_MOCK_GENERATION is disabled. "
+                "Either set KIEAI_API_KEY in .env or enable mock mode."
+            )
 
         # Initialize kie.ai provider
         if self.kieai_api_key and not self.use_mock:
             self.provider = KieAIProvider(api_key=self.kieai_api_key)
         else:
             self.provider = None
+            if not self.use_mock:
+                print("⚠️  Warning: No KIEAI provider initialized but mock mode is disabled!")
 
     async def generate_videos(self, job: ProductionJob, clips: List[SceneClip]) -> List[SceneClip]:
         """

@@ -4,8 +4,12 @@ Main Flask application with timeline editor
 """
 import os
 import asyncio
+from dotenv import load_dotenv
 from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
+
+# Load environment variables from .env file
+load_dotenv()
 from studio.orchestrator import ProductionOrchestrator
 from studio.schemas import ProductionMode, AgentStage
 from studio.posting.post_manager import PostManager
@@ -407,7 +411,7 @@ def system_status():
             "YOUTUBE_DATA_API_KEY": "✅ Configured" if os.environ.get('YOUTUBE_DATA_API_KEY') else "❌ Not Set",
             "SERPER_API_KEY": "✅ Configured" if os.environ.get('SERPER_API_KEY') else "❌ Not Set",
             "ANTHROPIC_API_KEY": "✅ Configured" if os.environ.get('ANTHROPIC_API_KEY') else "❌ Not Set",
-            "KIE_AI_API_KEY": "✅ Configured" if os.environ.get('KIE_AI_API_KEY') else "❌ Not Set"
+            "KIEAI_API_KEY": "✅ Configured" if os.environ.get('KIEAI_API_KEY') else "❌ Not Set"
         },
         "channel_connected": False,
         "channel_info": None
